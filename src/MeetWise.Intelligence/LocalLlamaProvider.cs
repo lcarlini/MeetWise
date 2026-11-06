@@ -23,6 +23,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable
     /// <param name="gpuLayers">Layers offloaded to the GPU; 0 = CPU only. Use 99 to offload everything that fits.</param>
     public LocalLlamaProvider(string ggufPath, int contextTokens = 4096, int gpuLayers = 0)
     {
+        // The backend is chosen once per process: use the CUDA backend whenever the GPU pack is installed (gpuLayers = 0 still runs on the CPU).
+        LlamaBackend.Configure(MeetWise.Core.Models.CudaRuntimePack.Activate());
         ContextTokens = contextTokens;
         _name = "local " + Path.GetFileNameWithoutExtension(ggufPath);
         _params = new ModelParams(ggufPath)

@@ -82,6 +82,7 @@ public partial class MainWindow : Window
         var outs = new AudioDeviceService().GetRenderDevices().OrderByDescending(d => AudioDeviceService.LooksVirtual(d.Name)).ToList();
         RenderCombo.ItemsSource = outs;
         RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
+        VirtualHint.Visibility = outs.Any(d => AudioDeviceService.LooksVirtual(d.Name)) ? Visibility.Collapsed : Visibility.Visible;
         EchoCheck.IsChecked = _settings.EchoCancellation;
         IsolateCheck.IsChecked = _settings.VoiceIsolation;
         StatusText.Text = "Bot-free and local: your microphone and the system audio are transcribed on this PC.";
@@ -365,15 +366,10 @@ public partial class MainWindow : Window
             if (meeting?.AudioPath is not { } mic || !File.Exists(mic)) { StatusText.Text = "The latest meeting has no recorded audio to refine."; return; }
             var loop = mic.EndsWith(".mic.wav", StringComparison.OrdinalIgnoreCase) ? mic[..^8] + ".loop.wav" : null;
 
+            _llmFactory.Release(); // free VRAM for Whisper
             var manager = new ModelManager(_http);
             var model = ModelCatalog.WhisperFor(_hardware);
-            if (_hardware.Tier == HardwareTier.A_NvidiaRtx && !CudaRuntimePack.IsInstalled())
-            {
-                var ask = MessageBox.Show("Install the GPU acceleration pack (about 400 MB from NVIDIA)? Refining is several times faster on your graphics card. Choose No to use the CPU.",
-                    "MeetWise", MessageBoxButton.YesNo);
-                if (ask == MessageBoxResult.Yes)
-                    await CudaRuntimePack.EnsureAsync(_http, new Progress<double>(p => StatusText.Text = $"Downloading GPU acceleration pack… {p:P0}"));
-            }
+            await OfferGpuPackAsync();
             CudaRuntimePack.Activate();
             await manager.EnsureAsync(model, new Progress<double>(p => StatusText.Text = $"Downloading {model.Id}… {p:P0}"));
 
@@ -488,8 +484,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _gpuPackAsked;
+
+    /// <summary>On NVIDIA cards, offers the 400 MB GPU acceleration pack once per session. Declining keeps everything working on the CPU.</summary>
+    private async Task OfferGpuPackAsync()
+    {
+        if (_hardware.Tier != HardwareTier.A_NvidiaRtx || CudaRuntimePack.IsInstalled() || _gpuPackAsked) return;
+        _gpuPackAsked = true;
+        var ask = MessageBox.Show("Install the GPU acceleration pack (about 400 MB from NVIDIA)? Transcription refinement and the local AI run several times faster on your graphics card. Choose No to use the CPU.",
+            "MeetWise", MessageBoxButton.YesNo);
+        if (ask == MessageBoxResult.Yes)
+            await CudaRuntimePack.EnsureAsync(_http, new Progress<double>(p => StatusText.Text = $"Downloading GPU acceleration pack… {p:P0}"));
+    }
+
     private async Task<ILlmProvider> GetLlmAsync()
     {
+        if (_settings.CloudProvider is null) await OfferGpuPackAsync();
         var progress = new Progress<double>(p => StatusText.Text = $"Downloading the local AI model… {p:P0} (one time)");
         return await _llmFactory.GetAsync(_settings, _hardware, progress);
     }

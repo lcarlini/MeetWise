@@ -23,6 +23,14 @@ public sealed class LlmFactory
         _secrets = secrets;
     }
 
+    /// <summary>Frees the model (and its VRAM). The 8B model and Whisper cannot both fit on an 8 GB card, so heavy steps run one after another.</summary>
+    public void Release()
+    {
+        (_cached as IDisposable)?.Dispose();
+        _cached = null;
+        _cachedKey = null;
+    }
+
     public async Task<ILlmProvider> GetAsync(AppSettings s, HardwareProfile hw, IProgress<double>? progress = null)
     {
         var key = $"{s.CloudProvider}|{s.LlmBaseUrl}|{s.LlmModel}";

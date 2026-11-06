@@ -18,6 +18,35 @@ public class LocalLlmTests
     }
 }
 
+public class LocalLlmGpuTests
+{
+    private static string Gguf => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "MeetWise", "models", "llm", "qwen2.5-0.5b-instruct-q4_k_m.gguf");
+
+    [Fact]
+    public async Task LocalLlama_OffloadsToGpu_WhenPackInstalled()
+    {
+        if (!File.Exists(Gguf) || !MeetWise.Core.Models.CudaRuntimePack.Activate()) return;
+        var hw = MeetWise.Core.Hardware.HardwareDetector.Detect();
+        if (hw.Gpus.Count == 0) return;
+        var before = VramUsedMb();
+        using var llm = new LocalLlamaProvider(Gguf, contextTokens: 2048, gpuLayers: 99);
+        var during = VramUsedMb();
+        var reply = await llm.CompleteAsync("Answer with just the number.", new[] { new ChatMessage("user", "What is 3 + 4?") }, 16);
+        Assert.Contains("7", reply);
+        Assert.True(during - before > 200, $"expected the model weights on the GPU, VRAM grew by {during - before} MB");
+    }
+
+    private static long VramUsedMb()
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo("nvidia-smi", "--query-gpu=memory.used --format=csv,noheader,nounits") { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        var o = p.StandardOutput.ReadToEnd();
+        p.WaitForExit();
+        return long.Parse(o.Trim().Split('\n')[0].Trim());
+    }
+}
+
 public class LlmSelectionTests
 {
     private static MeetWise.Core.Hardware.HardwareProfile Hw(long vram) => new(

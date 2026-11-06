@@ -1,8 +1,8 @@
-﻿<Application x:Class="MeetWise.App.App"
+<Application x:Class="MeetWise.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:MeetWise.App"
-             StartupUri="MainWindow.xaml">
+             Startup="OnStartup">
     <Application.Resources>
          
     </Application.Resources>
