@@ -33,6 +33,10 @@ public partial class MainWindow : Window
     private readonly LlmFactory _llmFactory;
     private Glossary _glossary;
     private LiveTranslation? _translation;
+    private VideoRecorder? _video;
+    private string? _ffmpegPath;
+    private string? _baseName;
+    private Task? _finishing;
     private readonly TaskbarIcon _tray;
     private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly CalendarService _calendar;
@@ -74,6 +78,7 @@ public partial class MainWindow : Window
         };
         _tick.Tick += async (_, _) => await TickAsync();
         _tick.Start();
+        _ = RecoverUnfinishedVideosAsync();
         var outs = new AudioDeviceService().GetRenderDevices().OrderByDescending(d => AudioDeviceService.LooksVirtual(d.Name)).ToList();
         RenderCombo.ItemsSource = outs;
         RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
@@ -116,7 +121,25 @@ public partial class MainWindow : Window
         string? modelDir = wantsText ? await EnsureAsrModelAsync() : null;
 
         var name = $"meeting-{DateTime.Now:yyyyMMdd-HHmmss}";
-        _recorder.Start(_settings.OutputFolder, name, _settings.MicrophoneId);
+        _baseName = name;
+        if (_settings.Preset == CapturePreset.AudioVideo)
+        {
+            _ffmpegPath = await FFmpegPack.EnsureAsync(_http, new Progress<double>(p => StatusText.Text = $"Downloading FFmpeg… {p:P0} (one time)"));
+            var encoders = await VideoRecorder.ProbeEncodersAsync(_ffmpegPath);
+            Directory.CreateDirectory(_settings.OutputFolder);
+            _video = new VideoRecorder(_ffmpegPath);
+            _video.Start(Path.Combine(_settings.OutputFolder, name + ".video.mkv"), encoders[0]);
+        }
+        try
+        {
+            _recorder.Start(_settings.OutputFolder, name, _settings.MicrophoneId);
+        }
+        catch
+        {
+            _video?.Dispose(); // do not leave a screen recording running when the audio devices failed
+            _video = null;
+            throw;
+        }
         _meetingId = _db.AddMeeting(name, DateTime.UtcNow, audioPath: _recorder.MicPath);
         _lines.Clear();
         _openPartials.Clear();
@@ -175,6 +198,48 @@ public partial class MainWindow : Window
         StatusText.Text = $"Saved meeting #{_meetingId} ({_lines.Count} lines) in {Path.GetFullPath(_settings.OutputFolder)}";
         if (_recorder.LoopbackPath is { } loop && _settings.Preset != CapturePreset.AudioOnly)
             _ = LabelSpeakersAsync(_meetingId, loop);
+        if (_video is not null) _finishing = FinishVideoAsync(_video, _ffmpegPath!, _baseName!, _recorder.MicPath, _recorder.LoopbackPath, _recorder.StartedUtc);
+        _video = null;
+    }
+
+    /// <summary>After a crash or power loss the MKV capture is still on disk: turn any orphaned one into an MP4 the next time the app starts.</summary>
+    private async Task RecoverUnfinishedVideosAsync()
+    {
+        try
+        {
+            var ffmpeg = FFmpegPack.Find();
+            if (ffmpeg is null || !Directory.Exists(_settings.OutputFolder)) return;
+            foreach (var mkv in Directory.GetFiles(_settings.OutputFolder, "*.video.mkv"))
+            {
+                var baseName = Path.GetFileName(mkv)[..^".video.mkv".Length];
+                var mp4 = Path.Combine(_settings.OutputFolder, baseName + ".mp4");
+                if (File.Exists(mp4) || (DateTime.UtcNow - File.GetLastWriteTimeUtc(mkv)).TotalSeconds < 30) continue; // finished, or still being written
+                var mic = Path.Combine(_settings.OutputFolder, baseName + ".mic.wav");
+                var loop = Path.Combine(_settings.OutputFolder, baseName + ".loop.wav");
+                await VideoRecorder.MuxAsync(ffmpeg, mkv, File.Exists(mic) ? mic : null, File.Exists(loop) ? loop : null,
+                    File.GetCreationTimeUtc(mkv), File.Exists(mic) ? File.GetCreationTimeUtc(mic) : File.GetCreationTimeUtc(mkv), mp4);
+                AppLog.Info("Recovered unfinished video: " + mp4);
+            }
+        }
+        catch (Exception ex) { AppLog.Warn("Video recovery skipped: " + ex.Message); }
+    }
+
+    /// <summary>Stops the screen capture and joins it with both audio channels into one MP4 (the WAV files are kept for Refine).</summary>
+    private async Task FinishVideoAsync(VideoRecorder video, string ffmpeg, string baseName, string? mic, string? loop, DateTime audioStartUtc)
+    {
+        try
+        {
+            await video.StopAsync();
+            var mp4 = Path.Combine(_settings.OutputFolder, baseName + ".mp4");
+            await VideoRecorder.MuxAsync(ffmpeg, video.OutputPath!, mic, loop, video.StartedUtc, audioStartUtc, mp4);
+            _ = Dispatcher.BeginInvoke(() => StatusText.Text = $"Video saved: {mp4}");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Video finalize failed", ex);
+            _ = Dispatcher.BeginInvoke(() => StatusText.Text = $"Video could not be finalized ({ex.Message}). The raw capture is kept at {video.OutputPath}.");
+        }
+        finally { video.Dispose(); }
     }
 
     /// <summary>Background pass after the meeting: split "Others" into Speaker 1, Speaker 2... and use enrolled names when voices match.</summary>
@@ -195,7 +260,7 @@ public partial class MainWindow : Window
                     Path.Combine(AppPaths.Roaming, "voices", "voices.json"));
                 return SpeakerLabeling.Apply(_db, meetingId, audio, diarizer, profiles);
             });
-            Dispatcher.Invoke(() => StatusText.Text = $"Meeting #{meetingId}: identified speakers in {changed} segment(s).");
+            _ = Dispatcher.BeginInvoke(() => StatusText.Text = $"Meeting #{meetingId}: identified speakers in {changed} segment(s).");
         }
         catch (Exception ex)
         {
@@ -531,6 +596,7 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { e.Cancel = true; return; }
             StopRecording();
         }
+        if (_finishing is { IsCompleted: false }) _finishing.Wait(TimeSpan.FromMinutes(2)); // let the MP4 finish before exiting
         _tick.Stop();
         _tray.Dispose();
         _enhance.Dispose();

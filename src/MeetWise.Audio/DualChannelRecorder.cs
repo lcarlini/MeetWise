@@ -22,6 +22,7 @@ public sealed class DualChannelRecorder : IDisposable
     public string? MicPath { get; private set; }
     public string? LoopbackPath { get; private set; }
     public bool IsRecording { get; private set; }
+    public DateTime StartedUtc { get; private set; }
     public WaveFormat? MicFormat { get; private set; }
     public WaveFormat? LoopbackFormat { get; private set; }
 
@@ -61,6 +62,7 @@ public sealed class DualChannelRecorder : IDisposable
                 DisposeCore();
                 throw;
             }
+            StartedUtc = DateTime.UtcNow;
             _flush = new Timer(_ => Flush(), null, 1000, 1000);
             IsRecording = true;
             AppLog.Info($"Recording started: mic={MicPath} loop={LoopbackPath}");
