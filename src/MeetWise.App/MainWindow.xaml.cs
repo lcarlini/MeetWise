@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<TranscriptLine> _lines = new();
     private readonly Dictionary<string, TranscriptLine> _openPartials = new();
     private readonly HttpClient _http = new();
+    private readonly EnhancementController _enhance;
     private LiveTranscriber? _live;
     private long _meetingId;
 
@@ -44,6 +45,12 @@ public partial class MainWindow : Window
         NoiseCombo.ItemsSource = Enum.GetValues<NoiseMode>();
         NoiseCombo.SelectedItem = _settings.NoiseCancellation;
         TranscriptList.ItemsSource = _lines;
+        _enhance = new EnhancementController(_http);
+        var outs = new AudioDeviceService().GetRenderDevices().OrderByDescending(d => AudioDeviceService.LooksVirtual(d.Name)).ToList();
+        RenderCombo.ItemsSource = outs;
+        RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
+        EchoCheck.IsChecked = _settings.EchoCancellation;
+        IsolateCheck.IsChecked = _settings.VoiceIsolation;
         StatusText.Text = "Bot-free and local: your microphone and the system audio are transcribed on this PC.";
     }
 
@@ -176,11 +183,58 @@ public partial class MainWindow : Window
         StatusText.Text = $"{hits.Count} result(s) across all meetings.";
     }
 
+    private async void Enhance_Click(object sender, RoutedEventArgs e)
+    {
+        EnhanceButton.IsEnabled = false;
+        try
+        {
+            if (_enhance.IsRunning)
+            {
+                _enhance.Stop();
+                EnhanceButton.Content = "Start cleanup";
+                StatusText.Text = "Microphone cleanup stopped.";
+            }
+            else if (RenderCombo.SelectedItem is AudioDeviceInfo dev)
+            {
+                SaveSettings();
+                var progress = new Progress<double>(p => StatusText.Text = $"Downloading enhancement model… {p:P0}");
+                await _enhance.StartAsync(_settings, dev.Id, progress);
+                EnhanceButton.Content = "Stop cleanup";
+                StatusText.Text = $"Cleaning microphone → {dev.Name}";
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Enhancement failed", ex);
+            StatusText.Text = "Enhancement failed: " + ex.Message;
+        }
+        finally { EnhanceButton.IsEnabled = true; }
+    }
+
+    private async void Enroll_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SaveSettings();
+            StatusText.Text = "Speak naturally for 10 seconds (read anything aloud)…";
+            await VoiceEnrollment.RecordAsync(_settings.MicrophoneId, VoiceEnrollment.DefaultPath, TimeSpan.FromSeconds(10));
+            IsolateCheck.IsChecked = true;
+            StatusText.Text = "Voice enrolled. Voice isolation is on for the next cleanup session.";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Enrollment failed", ex);
+            StatusText.Text = "Enrollment failed: " + ex.Message;
+        }
+    }
+
     private void SaveSettings()
     {
         if (MicCombo.SelectedItem is AudioDeviceInfo m) _settings.MicrophoneId = m.Id;
         if (PresetCombo.SelectedItem is CapturePreset p) _settings.Preset = p;
         if (NoiseCombo.SelectedItem is NoiseMode n) _settings.NoiseCancellation = n;
+        _settings.EchoCancellation = EchoCheck.IsChecked == true;
+        _settings.VoiceIsolation = IsolateCheck.IsChecked == true;
         _store.Save(_settings);
     }
 
@@ -192,6 +246,7 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { e.Cancel = true; return; }
             StopRecording();
         }
+        _enhance.Dispose();
         SaveSettings();
         base.OnClosing(e);
     }
