@@ -1,31 +1,60 @@
 <Window x:Class="MeetWise.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MeetWise" Width="560" Height="420" MinWidth="460" MinHeight="360"
+        Title="MeetWise" Width="760" Height="640" MinWidth="560" MinHeight="480"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="MeetWise" FontSize="26" FontWeight="SemiBold"/>
-        <TextBlock x:Name="HardwareText" Grid.Row="1" Margin="0,4,0,16" TextWrapping="Wrap" Opacity="0.7"/>
+        <TextBlock x:Name="HardwareText" Grid.Row="1" Margin="0,4,0,12" TextWrapping="Wrap" Opacity="0.7"/>
 
-        <StackPanel Grid.Row="2">
-            <TextBlock Text="Microphone" Margin="0,0,0,4"/>
-            <ComboBox x:Name="MicCombo" Margin="0,0,0,10"/>
-            <TextBlock Text="Capture mode" Margin="0,0,0,4"/>
-            <ComboBox x:Name="PresetCombo" Margin="0,0,0,10"/>
-            <TextBlock Text="Noise cancellation (engine arrives in phase 3)" Margin="0,0,0,4"/>
-            <ComboBox x:Name="NoiseCombo"/>
-        </StackPanel>
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="140"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel><TextBlock Text="Microphone" Margin="0,0,0,4"/><ComboBox x:Name="MicCombo"/></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Capture mode" Margin="0,0,0,4"/><ComboBox x:Name="PresetCombo"/></StackPanel>
+            <StackPanel Grid.Column="4"><TextBlock Text="Noise cancellation" Margin="0,0,0,4"/><ComboBox x:Name="NoiseCombo"/></StackPanel>
+        </Grid>
 
-        <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,16,0,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        <Grid Grid.Row="3" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox" Height="28" VerticalContentAlignment="Center" KeyDown="SearchBox_KeyDown"
+                     ToolTip="Search every meeting transcript, then press Enter"/>
+            <Button Grid.Column="1" Content="Search" Width="80" Margin="8,0,0,0" Click="Search_Click"/>
+            <Button Grid.Column="2" Content="Import audio/video…" Width="150" Margin="8,0,0,0" Click="Import_Click"/>
+        </Grid>
 
-        <Button x:Name="RecordButton" Grid.Row="4" Content="Start recording" Height="44" FontSize="16" Click="RecordButton_Click"/>
+        <ListBox x:Name="TranscriptList" Grid.Row="4" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock TextWrapping="Wrap" Margin="0,2">
+                        <Run Text="{Binding Time, Mode=OneWay}" Foreground="Gray"/>
+                        <Run Text="{Binding Speaker, Mode=OneWay}" FontWeight="SemiBold"/>
+                        <Run Text="{Binding Text, Mode=OneWay}"/>
+                    </TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock x:Name="StatusText" Grid.Row="5" Margin="0,10,0,10" TextWrapping="Wrap"/>
+        <Button x:Name="RecordButton" Grid.Row="6" Content="Start recording" Height="44" FontSize="16" Click="RecordButton_Click"/>
     </Grid>
 </Window>

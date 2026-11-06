@@ -22,6 +22,8 @@ public sealed class DualChannelRecorder : IDisposable
     public string? MicPath { get; private set; }
     public string? LoopbackPath { get; private set; }
     public bool IsRecording { get; private set; }
+    public WaveFormat? MicFormat { get; private set; }
+    public WaveFormat? LoopbackFormat { get; private set; }
 
     /// <summary>Raised with raw captured buffers (source 'mic' or 'loop') for live ASR taps.</summary>
     public event Action<string, WaveFormat, byte[], int>? DataAvailable;
@@ -39,6 +41,7 @@ public sealed class DualChannelRecorder : IDisposable
                 {
                     MicPath = Path.Combine(folder, baseName + ".mic.wav");
                     _mic = new WasapiCapture(AudioDeviceService.OpenCapture(micId, _enumerator));
+                    MicFormat = _mic.WaveFormat;
                     _micWriter = new WaveFileWriter(MicPath, _mic.WaveFormat);
                     _mic.DataAvailable += (_, e) => OnData("mic", _mic.WaveFormat, _micWriter, e);
                     _mic.StartRecording();
@@ -47,6 +50,7 @@ public sealed class DualChannelRecorder : IDisposable
                 {
                     LoopbackPath = Path.Combine(folder, baseName + ".loop.wav");
                     _loop = new WasapiLoopbackCapture();
+                    LoopbackFormat = _loop.WaveFormat;
                     _loopWriter = new WaveFileWriter(LoopbackPath, _loop.WaveFormat);
                     _loop.DataAvailable += (_, e) => OnData("loop", _loop.WaveFormat, _loopWriter, e);
                     _loop.StartRecording();

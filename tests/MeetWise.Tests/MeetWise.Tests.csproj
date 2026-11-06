@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\MeetWise.Core\MeetWise.Core.csproj" />
     <ProjectReference Include="..\..\src\MeetWise.Audio\MeetWise.Audio.csproj" />
     <ProjectReference Include="..\..\src\MeetWise.Storage\MeetWise.Storage.csproj" />
+    <ProjectReference Include="..\..\src\MeetWise.Speech\MeetWise.Speech.csproj" />
   </ItemGroup>
 
 </Project>

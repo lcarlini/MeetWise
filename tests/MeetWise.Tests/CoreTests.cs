@@ -79,3 +79,20 @@ public class CoreTests
         Assert.False(mm.IsInstalled(bad));
     }
 }
+
+public class ArchiveTests
+{
+    [Fact]
+    public void ExtractTarBz2_ExtractsFiles()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "mw-arc-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var archive = Path.Combine(dir, "a.tar.bz2");
+        var py = "import tarfile,io;t=tarfile.open(r'" + archive + "','w:bz2');d=b'hello';i=tarfile.TarInfo('m/tokens.txt');i.size=len(d);t.addfile(i,io.BytesIO(d));t.close()";
+        var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("python", new[] { "-c", py }) { UseShellExecute = false });
+        p!.WaitForExit();
+        if (!File.Exists(archive)) return; // python unavailable
+        MeetWise.Core.Models.ModelManager.ExtractTarBz2(archive, Path.Combine(dir, "out"));
+        Assert.Equal("hello", File.ReadAllText(Path.Combine(dir, "out", "m", "tokens.txt")));
+    }
+}
