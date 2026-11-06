@@ -209,18 +209,9 @@ public partial class MainWindow : Window
         try
         {
             var ffmpeg = FFmpegPack.Find();
-            if (ffmpeg is null || !Directory.Exists(_settings.OutputFolder)) return;
-            foreach (var mkv in Directory.GetFiles(_settings.OutputFolder, "*.video.mkv"))
-            {
-                var baseName = Path.GetFileName(mkv)[..^".video.mkv".Length];
-                var mp4 = Path.Combine(_settings.OutputFolder, baseName + ".mp4");
-                if (File.Exists(mp4) || (DateTime.UtcNow - File.GetLastWriteTimeUtc(mkv)).TotalSeconds < 30) continue; // finished, or still being written
-                var mic = Path.Combine(_settings.OutputFolder, baseName + ".mic.wav");
-                var loop = Path.Combine(_settings.OutputFolder, baseName + ".loop.wav");
-                await VideoRecorder.MuxAsync(ffmpeg, mkv, File.Exists(mic) ? mic : null, File.Exists(loop) ? loop : null,
-                    File.GetCreationTimeUtc(mkv), File.Exists(mic) ? File.GetCreationTimeUtc(mic) : File.GetCreationTimeUtc(mkv), mp4);
+            if (ffmpeg is null) return;
+            foreach (var mp4 in await VideoRecorder.RecoverOrphansAsync(ffmpeg, _settings.OutputFolder))
                 AppLog.Info("Recovered unfinished video: " + mp4);
-            }
         }
         catch (Exception ex) { AppLog.Warn("Video recovery skipped: " + ex.Message); }
     }

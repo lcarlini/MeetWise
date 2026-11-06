@@ -148,6 +148,35 @@ public sealed class VideoRecorder : IDisposable
         static string Q(string s) => "\"" + s + "\"";
     }
 
+    /// <summary>
+    /// Finds captures whose recording never finished (crash, power loss) and turns them into MP4s, together with their audio files.
+    /// Files modified in the last <paramref name="settleSeconds"/> are skipped because a recording may still be writing them.
+    /// </summary>
+    public static async Task<IReadOnlyList<string>> RecoverOrphansAsync(string ffmpeg, string folder, int settleSeconds = 30)
+    {
+        var recovered = new List<string>();
+        if (!Directory.Exists(folder)) return recovered;
+        foreach (var mkv in Directory.GetFiles(folder, "*.video.mkv"))
+        {
+            var baseName = Path.GetFileName(mkv)[..^".video.mkv".Length];
+            var mp4 = Path.Combine(folder, baseName + ".mp4");
+            if (File.Exists(mp4) || (DateTime.UtcNow - File.GetLastWriteTimeUtc(mkv)).TotalSeconds < settleSeconds) continue;
+            var mic = Path.Combine(folder, baseName + ".mic.wav");
+            var loop = Path.Combine(folder, baseName + ".loop.wav");
+            try
+            {
+                await MuxAsync(ffmpeg, mkv, File.Exists(mic) ? mic : null, File.Exists(loop) ? loop : null,
+                    File.GetCreationTimeUtc(mkv), File.Exists(mic) ? File.GetCreationTimeUtc(mic) : File.GetCreationTimeUtc(mkv), mp4);
+                recovered.Add(mp4);
+            }
+            catch (InvalidOperationException ex)
+            {
+                AppLog.Warn($"Could not recover {Path.GetFileName(mkv)}: {ex.Message}"); // keep the MKV for manual recovery
+            }
+        }
+        return recovered;
+    }
+
     public void Dispose()
     {
         try { _process?.Kill(true); } catch (Exception) { }

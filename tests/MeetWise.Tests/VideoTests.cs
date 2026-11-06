@@ -89,4 +89,32 @@ public class VideoTests
         Assert.InRange(double.Parse(info["format"]!["duration"]!.ToString(), System.Globalization.CultureInfo.InvariantCulture), 2.5, 5.0);
         File.WriteAllText(Path.Combine(Path.GetTempPath(), "video-encoder.txt"), $"{encoders[0].Name}; screen {w}x{v["height"]}");
     }
+
+    [Fact]
+    public async Task Recovery_TurnsAnOrphanedMkvIntoMp4_AndSkipsFreshAndFinishedOnes()
+    {
+        var (ffmpeg, ffprobe) = await ToolsAsync();
+        var dir = Path.Combine(Path.GetTempPath(), "mw-rec-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        async Task Make(string name, bool old)
+        {
+            var mkv = Path.Combine(dir, name + ".video.mkv");
+            var (c, o) = await FFmpegPack.RunAsync(ffmpeg, $"-hide_banner -loglevel error -f lavfi -i testsrc=s=320x180:r=15 -t 2 -c:v libx264 -pix_fmt yuv420p \"{mkv}\"");
+            Assert.True(c == 0, o);
+            if (old) File.SetLastWriteTimeUtc(mkv, DateTime.UtcNow.AddMinutes(-10));
+        }
+        await Make("crashed", old: true);   // should be recovered, with its audio
+        WriteTone(Path.Combine(dir, "crashed.mic.wav"), 2, 440);
+        await Make("running", old: false);  // modified just now: a live recording, must be left alone
+        await Make("done", old: true);      // already has an MP4
+        File.WriteAllText(Path.Combine(dir, "done.mp4"), "x");
+
+        var recovered = await VideoRecorder.RecoverOrphansAsync(ffmpeg, dir);
+
+        Assert.Equal(new[] { Path.Combine(dir, "crashed.mp4") }, recovered);
+        var info = await ProbeAsync(ffprobe, recovered[0]);
+        Assert.Contains(info["streams"]!.AsArray(), s => s!["codec_type"]!.ToString() == "audio");
+        Assert.True(File.Exists(Path.Combine(dir, "running.video.mkv")));
+        Assert.Equal("x", File.ReadAllText(Path.Combine(dir, "done.mp4")));
+    }
 }

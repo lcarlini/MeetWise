@@ -65,7 +65,7 @@ public static class SelfTest
             LlamaBackend.Configure(CudaRuntimePack.Activate());
             if (!LLama.Native.NativeLibraryConfig.All.DryRun(out var lib, out _) || lib is null)
                 throw new InvalidOperationException("no llama.cpp backend could be loaded");
-            return lib!.Metadata.UseCuda ? "CUDA backend" : "CPU backend";
+            return lib is { Metadata.UseCuda: true } ? "CUDA backend" : "CPU backend";
         });
         Check("Windows speech voices", () => $"{WindowsVoice.InstalledLanguages.Count} language(s): {string.Join(", ", WindowsVoice.InstalledLanguages.Take(8))}", required: false);
         Check("FFmpeg", () => FFmpegPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first video recording)"), required: false);
