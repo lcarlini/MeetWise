@@ -13,6 +13,8 @@ using MeetWise.Core.Settings;
 using MeetWise.Intelligence;
 using MeetWise.Speech;
 using MeetWise.Storage;
+using System.Windows.Threading;
+using Hardcodet.Wpf.TaskbarNotification;
 
 namespace MeetWise.App;
 
@@ -30,6 +32,12 @@ public partial class MainWindow : Window
     private readonly SecretStore _secrets = new();
     private readonly LlmFactory _llmFactory;
     private Glossary _glossary;
+    private readonly TaskbarIcon _tray;
+    private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly CalendarService _calendar;
+    private readonly MeetingDetector _detector = new();
+    private ReminderScheduler _reminders;
+    private Func<Task>? _balloonAction;
     private LiveTranscriber? _live;
     private long _meetingId;
 
@@ -52,6 +60,19 @@ public partial class MainWindow : Window
         _enhance = new EnhancementController(_http);
         _llmFactory = new LlmFactory(_http, _secrets);
         _glossary = new Glossary(_settings.Glossary);
+        _calendar = new CalendarService(_http);
+        _reminders = new ReminderScheduler(TimeSpan.FromMinutes(_settings.ReminderMinutes));
+        _tray = new TaskbarIcon { Icon = System.Drawing.SystemIcons.Application, ToolTipText = "MeetWise" };
+        _tray.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
+        _tray.TrayBalloonTipClicked += async (_, _) =>
+        {
+            var action = _balloonAction;
+            _balloonAction = null;
+            RestoreFromTray();
+            if (action is not null) await action();
+        };
+        _tick.Tick += async (_, _) => await TickAsync();
+        _tick.Start();
         var outs = new AudioDeviceService().GetRenderDevices().OrderByDescending(d => AudioDeviceService.LooksVirtual(d.Name)).ToList();
         RenderCombo.ItemsSource = outs;
         RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
@@ -235,6 +256,81 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RestoreFromTray()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (WindowState == WindowState.Minimized && _settings.MinimizeToTray) Hide();
+    }
+
+    private void Notify(string title, string text, Func<Task>? onClick)
+    {
+        _balloonAction = onClick;
+        _tray.ShowBalloonTip(title, text, BalloonIcon.Info);
+    }
+
+    /// <summary>Every 30 s: offer to record when a conferencing app grabs the mic, and announce upcoming calendar meetings.</summary>
+    private async Task TickAsync()
+    {
+        try
+        {
+            if (_settings.AutoDetectMeetings && !_recorder.IsRecording && _detector.Poll() is { } call)
+                Notify("MeetWise", $"{call.Process} is using your microphone. Click to start recording.",
+                    async () => { if (!_recorder.IsRecording) await StartRecordingAsync(); });
+
+            if (!string.IsNullOrWhiteSpace(_settings.CalendarUrl))
+            {
+                var upcoming = await _calendar.UpcomingAsync(_settings.CalendarUrl, DateTime.UtcNow, TimeSpan.FromHours(12));
+                foreach (var r in _reminders.Due(upcoming, DateTime.UtcNow))
+                {
+                    var evt = r.Event;
+                    var mins = Math.Max(0, (int)Math.Round(r.Remaining.TotalMinutes));
+                    Notify($"Starting in {mins} min", $"{evt.Title}. Click for your brief.", () => ShowBriefAsync(evt));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Background check failed: " + ex.Message);
+        }
+    }
+
+    private async Task ShowBriefAsync(CalendarEvent evt)
+    {
+        try
+        {
+            var context = new PreMeetingAssistant(new NoLlm(), _db).BuildContext(evt);
+            _lines.Clear();
+            _lines.Add(new TranscriptLine { Speaker = evt.Title, Time = $"[{evt.StartUtc.ToLocalTime():HH:mm}] ", Text = context.Length == 0 ? "First meeting of this series." : "Writing your brief…" });
+            if (context.Length == 0) return;
+            var llm = await GetLlmAsync();
+            var brief = await new PreMeetingAssistant(llm, _db).BriefAsync(evt, Profile);
+            _lines.Clear();
+            foreach (var line in brief.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                _lines.Add(new TranscriptLine { Speaker = "", Text = line.Trim() });
+            StatusText.Text = $"Brief for \"{evt.Title}\".";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Brief failed", ex);
+            StatusText.Text = "Brief failed: " + ex.Message;
+        }
+    }
+
+    private sealed class NoLlm : ILlmProvider
+    {
+        public string Name => "none";
+        public int ContextTokens => 0;
+        public Task<string> CompleteAsync(string system, IReadOnlyList<ChatMessage> messages, int maxTokens = 1024, CancellationToken ct = default)
+            => throw new InvalidOperationException("No model is configured.");
+    }
+
     private UserProfile Profile => new(_settings.UserNickname, _settings.UserOccupation, _settings.UserContext);
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -245,6 +341,7 @@ public partial class MainWindow : Window
         {
             _store.Save(_settings);
             _glossary = new Glossary(_settings.Glossary);
+            _reminders = new ReminderScheduler(TimeSpan.FromMinutes(_settings.ReminderMinutes));
             StatusText.Text = "Settings saved.";
         }
     }
@@ -357,6 +454,8 @@ public partial class MainWindow : Window
             if (r != MessageBoxResult.Yes) { e.Cancel = true; return; }
             StopRecording();
         }
+        _tick.Stop();
+        _tray.Dispose();
         _enhance.Dispose();
         SaveSettings();
         base.OnClosing(e);

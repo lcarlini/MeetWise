@@ -28,6 +28,11 @@ public sealed class AppSettings
     /// <summary>Optional URL that receives action items as JSON.</summary>
     public string? WebhookUrl { get; set; }
 
+    /// <summary>Calendar feed in iCalendar format (Google "secret address in iCal format", Outlook published calendar, webcal://).</summary>
+    public string? CalendarUrl { get; set; }
+    public int ReminderMinutes { get; set; } = 5;
+    public bool AutoDetectMeetings { get; set; } = true;
+
     public string TemplateId { get; set; } = "general";
     public string? UserNickname { get; set; }
     public string? UserOccupation { get; set; }

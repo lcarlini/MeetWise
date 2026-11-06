@@ -39,6 +39,11 @@
                 <Button Content="Legal" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="legal"/>
             </WrapPanel>
 
+            <TextBlock Text="Calendar" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.7" Text="Paste your calendar's iCal feed address (Google Calendar: Settings, Integrate calendar, Secret address in iCal format; Outlook: published calendar ICS link)."/>
+            <TextBox x:Name="CalendarBox" Margin="0,4,0,4"/>
+            <CheckBox x:Name="DetectCheck" Content="Offer to record when Zoom, Teams, Meet and similar apps start using the microphone" Margin="0,0,0,8"/>
+
             <TextBlock Text="Action item webhook URL (optional)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,4"/>
             <TextBox x:Name="WebhookBox" Margin="0,0,0,16"/>
 

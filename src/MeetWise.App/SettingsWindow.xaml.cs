@@ -26,6 +26,8 @@ public partial class SettingsWindow : Window
         CtxBox.Text = settings.UserContext ?? "";
         GlossaryBox.Text = string.Join(Environment.NewLine, settings.Glossary);
         WebhookBox.Text = settings.WebhookUrl ?? "";
+        CalendarBox.Text = settings.CalendarUrl ?? "";
+        DetectCheck.IsChecked = settings.AutoDetectMeetings;
         ProviderCombo_Changed(null, null!);
     }
 
@@ -59,6 +61,12 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        if (CalendarBox.Text.Trim().Length > 0 && !(Uri.TryCreate(CalendarBox.Text.Trim(), UriKind.Absolute, out var c) && c.Scheme is "http" or "https" or "webcal"))
+        {
+            MessageBox.Show("The calendar address must start with https:// or webcal://.", "MeetWise");
+            return;
+        }
+
         _settings.CloudProvider = provider.Length == 0 ? null : provider;
         _settings.LlmBaseUrl = UrlBox.Text.Trim().Length == 0 ? null : UrlBox.Text.Trim();
         _settings.LlmModel = ModelBox.Text.Trim().Length == 0 ? null : ModelBox.Text.Trim();
@@ -69,6 +77,8 @@ public partial class SettingsWindow : Window
         _settings.UserOccupation = OccBox.Text.Trim().Length == 0 ? null : OccBox.Text.Trim();
         _settings.UserContext = CtxBox.Text.Trim().Length == 0 ? null : CtxBox.Text.Trim();
         _settings.Glossary = GlossaryBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        _settings.CalendarUrl = CalendarBox.Text.Trim().Length == 0 ? null : CalendarBox.Text.Trim();
+        _settings.AutoDetectMeetings = DetectCheck.IsChecked == true;
         _settings.WebhookUrl = WebhookBox.Text.Trim().Length == 0 ? null : WebhookBox.Text.Trim();
         DialogResult = true;
     }
