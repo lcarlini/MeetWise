@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+*.user
+dist/
+models/
+native/build/
