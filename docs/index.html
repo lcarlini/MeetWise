@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeetWise: local-first AI meeting assistant</title>
+<meta name="description" content="MeetWise captures, transcribes, cleans up and summarises your meetings on your own Windows PC.">
+<style>
+  :root {
+    --bg: #0b1020; --panel: #121a31; --panel-2: #18223f; --line: #26335a;
+    --text: #e8ecf8; --muted: #9aa6c7; --accent: #6d8cff; --accent-2: #3dd6c6;
+    --warn: #ffb547; --ok: #4ade80; --radius: 16px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f7fc; --panel: #ffffff; --panel-2: #eef2fb; --line: #d8dff0; --text: #161c33; --muted: #5b6685; }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font: 16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--text); background: var(--bg); }
+  a { color: var(--accent-2); }
+  code { font-family: Consolas, ui-monospace, monospace; background: var(--panel-2); padding: .1em .4em; border-radius: 6px; font-size: .92em; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  h1, h2, h3 { line-height: 1.2; margin: 0 0 12px; }
+  h2 { font-size: clamp(26px, 3vw, 34px); }
+  h3 { font-size: 18px; }
+  .lead { color: var(--muted); font-size: 18px; max-width: 760px; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; color: var(--accent-2); font-weight: 700; }
+
+  /* hero */
+  header.hero { position: relative; overflow: hidden; padding: 96px 0 72px;
+    background: radial-gradient(1200px 500px at 15% -10%, #2a3f8f55, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0f6e6255, transparent 60%), var(--bg); }
+  .hero h1 { font-size: clamp(40px, 6vw, 64px); letter-spacing: -.02em; }
+  .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 32px; }
+  .badge { font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--panel); }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 12px 20px; border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel); }
+  .btn.primary { background: linear-gradient(90deg, var(--accent), #5a6fe0); border-color: transparent; color: #fff; }
+
+  /* grids */
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 32px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card .ico { font-size: 26px; margin-bottom: 8px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 6px; margin-top: 10px; background: var(--panel-2); color: var(--muted); }
+  .tag.ok { color: var(--ok); } .tag.todo { color: var(--warn); }
+
+  /* figures */
+  figure { margin: 32px 0 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; overflow: hidden; }
+  figure img, figure svg { display: block; width: 100%; height: auto; border-radius: 10px; }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+
+  /* flow */
+  .flow { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); counter-reset: step; margin-top: 28px; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 20px 20px 58px; position: relative; }
+  .step::before { counter-increment: step; content: counter(step); position: absolute; left: 18px; top: 18px; width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; display: grid; place-items: center; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 15px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+
+  .two { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } th:nth-child(3), td:nth-child(3) { display: none; } }
+  .note { border-left: 3px solid var(--warn); background: var(--panel); padding: 14px 18px; border-radius: 8px; color: var(--muted); margin-top: 20px; }
+  pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; font: 14px/1.5 Consolas, ui-monospace, monospace; }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Local-first · Windows 11 · No meeting bot</div>
+    <h1>Meet<span>Wise</span></h1>
+    <p class="lead">An AI assistant for your meetings that runs on your own PC. It records what you hear and say, cleans up your microphone, transcribes live, and turns each meeting into notes, action items and answers. Everything works offline; a cloud API key is an optional upgrade.</p>
+    <div class="badges">
+      <span class="badge">.NET 10 · WPF</span>
+      <span class="badge">sherpa-onnx · Whisper · llama.cpp</span>
+      <span class="badge">NVIDIA CUDA 13 (optional)</span>
+      <span class="badge">SQLite + full-text search</span>
+      <span class="badge">80 automated tests</span>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="#how">See how it works</a>
+      <a class="btn" href="#screens">Screenshots</a>
+      <a class="btn" href="https://github.com/lcarlini/MeetWise">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <div class="eyebrow">What it does</div>
+    <h2>One place for everything a meeting produces</h2>
+    <p class="lead">Krisp-style audio clean-up, meeting intelligence and recording, combined in one app. Nothing leaves your machine unless you choose a cloud provider.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🎙️</div><h3>Bot-free capture</h3><p>Records your microphone and the system audio as two separate channels, so no bot joins the call and "me" and "others" are kept apart.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">📝</div><h3>Live transcript</h3><p>Streaming speech-to-text with partial results and timestamps, plus a Whisper "Refine" pass that runs on the GPU for higher accuracy in 99 languages.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🔇</div><h3>Noise, echo and voice isolation</h3><p>Three noise-suppression levels, adaptive echo cancellation, and a voice-isolation mode that keeps only the voice you enrolled.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🧠</div><h3>Meeting intelligence</h3><p>Notes, decisions, risks and action items with owners and dates. Ask questions across all meetings and get answers with timestamp citations.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🗓️</div><h3>Pre-meeting briefs</h3><p>Reads any iCal calendar, reminds you before meetings, offers to record when Zoom, Teams or Meet starts, and prepares a brief from earlier meetings in the same series.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🌍</div><h3>Live translation</h3><p>Shows other people's speech as captions in your language, and can speak your sentences translated into a chosen device.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🎬</div><h3>Audio + video</h3><p>Screen recording with NVENC, Quick Sync, AMD AMF or x264 (picked automatically), joined into one MP4 with both audio channels.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🔌</div><h3>Virtual microphone</h3><p>Meeting apps need a virtual audio device to receive the cleaned voice. Until the planned driver exists, install the free VB-CABLE.</p><span class="tag todo">Needs VB-CABLE</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="eyebrow">How it works</div>
+    <h2>From your microphone to meeting notes</h2>
+    <p class="lead">Audio is processed in small blocks, so nothing waits for a whole meeting to finish. Heavy work (the high-accuracy transcript, speaker naming, notes) runs after the meeting, one model at a time.</p>
+
+    <figure>
+      <svg viewBox="0 0 1000 420" role="img" aria-label="Architecture diagram">
+        <defs>
+          <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#6d8cff"/><stop offset="1" stop-color="#3dd6c6"/></linearGradient>
+          <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9aa6c7"/></marker>
+        </defs>
+        <rect width="1000" height="420" fill="#0f1730" rx="14"/>
+        <g font-family="Segoe UI, sans-serif" font-size="15" fill="#e8ecf8" text-anchor="middle">
+          <rect x="30" y="40" width="190" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="125" y="70" font-weight="700">Your microphone</text><text x="125" y="92" fill="#9aa6c7" font-size="13">"Me"</text>
+          <rect x="30" y="300" width="190" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="125" y="330" font-weight="700">System audio</text><text x="125" y="352" fill="#9aa6c7" font-size="13">"Others" (loopback)</text>
+
+          <rect x="270" y="40" width="200" height="70" rx="12" fill="#18223f" stroke="url(#g)" stroke-width="2"/><text x="370" y="70" font-weight="700">Enhance</text><text x="370" y="92" fill="#9aa6c7" font-size="13">echo · noise · voice isolation</text>
+
+          <rect x="520" y="40" width="210" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="625" y="70" font-weight="700">Live transcript</text><text x="625" y="92" fill="#9aa6c7" font-size="13">streaming ASR, per channel</text>
+
+          <rect x="520" y="170" width="210" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="625" y="200" font-weight="700">WAV files on disk</text><text x="625" y="222" fill="#9aa6c7" font-size="13">flushed every second</text>
+
+          <rect x="770" y="40" width="200" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="870" y="70" font-weight="700">SQLite + search</text><text x="870" y="92" fill="#9aa6c7" font-size="13">transcript · tags · actions</text>
+
+          <rect x="520" y="300" width="210" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="625" y="330" font-weight="700">Refine (Whisper, GPU)</text><text x="625" y="352" fill="#9aa6c7" font-size="13">after the meeting</text>
+
+          <rect x="770" y="170" width="200" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="870" y="200" font-weight="700">Local LLM (Qwen3)</text><text x="870" y="222" fill="#9aa6c7" font-size="13">notes · Ask · briefs</text>
+
+          <rect x="770" y="300" width="200" height="70" rx="12" fill="#18223f" stroke="#26335a"/><text x="870" y="330" font-weight="700">Speakers</text><text x="870" y="352" fill="#9aa6c7" font-size="13">diarize · name enrolled voices</text>
+        </g>
+        <g stroke="#9aa6c7" stroke-width="2" fill="none" marker-end="url(#a)">
+          <path d="M220 75 L268 75"/>
+          <path d="M220 335 Q245 335 245 240 Q245 75 268 75" opacity=".6"/>
+          <path d="M470 75 L518 75"/>
+          <path d="M625 110 L625 168"/>
+          <path d="M730 205 L768 205"/>
+          <path d="M625 240 L625 298"/>
+          <path d="M730 335 L768 335"/>
+          <path d="M870 110 L870 168"/>
+        </g>
+        <text x="500" y="410" text-anchor="middle" fill="#9aa6c7" font-size="13" font-family="Segoe UI, sans-serif">Everything above runs on this PC. Only model downloads and the calendar or LLM endpoints you configure touch the network.</text>
+      </svg>
+      <figcaption>Data flow: two channels, enhanced and transcribed live, saved to disk as they arrive, then refined and analysed.</figcaption>
+    </figure>
+
+    <div class="flow">
+      <div class="step"><h3>Capture</h3><p>Two WASAPI streams: your mic and the loopback of what your PC plays. Recording survives device changes and sleep.</p></div>
+      <div class="step"><h3>Enhance</h3><p>Echo cancellation, then noise suppression or voice isolation in 10 ms blocks, real-time factor 0.06 to 0.29 on the dev machine.</p></div>
+      <div class="step"><h3>Transcribe</h3><p>Streaming recognisers, one per channel, run on worker threads so audio capture is never blocked.</p></div>
+      <div class="step"><h3>Refine & analyse</h3><p>Whisper re-transcribes each channel, the speakers are labelled, and the local LLM writes notes and action items.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="screens">
+  <div class="wrap">
+    <div class="eyebrow">Screenshots</div>
+    <h2>The main window</h2>
+    <p class="lead">The main window shows your hardware, microphone and capture settings, the audio enhancement panel, search and the live transcript. The screenshot is from the development build on an RTX 4070 Laptop.</p>
+    <figure>
+      <img src="img/main-window.png" alt="MeetWise main window showing hardware detection, microphone selection and the search bar" loading="lazy">
+      <figcaption>Main window. The button row is wider than the window at this size, so the right-hand buttons are clipped. This is a known issue, listed below.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <div class="eyebrow">Privacy and cloud</div>
+    <h2>Local first, cloud optional</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Stays on your PC</h3>
+        <p>Audio, transcripts, voice profiles (stored as numeric embeddings, never recordings), the database and every model. Notes, Ask and translation use the local LLM by default.</p>
+      </div>
+      <div class="card">
+        <h3>Only if you configure it</h3>
+        <p>An Anthropic key or any OpenAI-compatible server (OpenAI, Ollama, LM Studio). Keys are encrypted with Windows DPAPI and never written to <code>settings.json</code>. Calendar feeds, webhooks and model downloads are the other network uses.</p>
+      </div>
+    </div>
+    <div class="note">Recording other people may require their consent where you live. MeetWise does not announce itself in the meeting, so telling participants is your responsibility.</div>
+  </div>
+</section>
+
+<section id="hardware">
+  <div class="wrap">
+    <div class="eyebrow">Hardware</div>
+    <h2>Runs on any PC, uses your GPU when it can</h2>
+    <p class="lead">At first run MeetWise detects your GPU and VRAM and picks sensible defaults. You can override them in Settings.</p>
+    <table>
+      <thead><tr><th>Tier</th><th>Detected as</th><th>Defaults</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>NVIDIA with 6 GB or more</td><td>Whisper large-v3-turbo and Qwen3-8B on the GPU; all noise modes</td></tr>
+        <tr><td>B</td><td>Any other GPU</td><td>Whisper small, Qwen3-4B</td></tr>
+        <tr><td>C</td><td>CPU only</td><td>Whisper base or small, Qwen3-4B on the CPU, or an API key</td></tr>
+      </tbody>
+    </table>
+    <p class="lead" style="margin-top:20px">The NVIDIA CUDA 13 libraries (about 400 MB) are downloaded from NVIDIA when you agree. You do not need to install the CUDA Toolkit. On 8 GB cards, the LLM is released before Whisper loads, so the two never compete for VRAM.</p>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <div class="eyebrow">Getting started</div>
+    <h2>Build and run</h2>
+    <p class="lead">Requires Windows 11 x64 and the .NET 10 SDK. Models download on first use (resumable, SHA-256 verified).</p>
+<pre><code>git clone https://github.com/lcarlini/MeetWise
+cd MeetWise
+dotnet build MeetWise.slnx -c Release
+dotnet test tests/MeetWise.Tests -c Release   # 80 tests, incl. real models and devices
+powershell -ExecutionPolicy Bypass -File start.ps1   # build latest and launch</code></pre>
+    <p class="lead">Check a published build's components with <code>MeetWise.App.exe --selftest report.txt</code>. It writes a report and exits with 0 when every required part loads.</p>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <div class="eyebrow">Honest status</div>
+    <h2>What is not done yet</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Not built</h3>
+        <p>A virtual microphone and speaker driver (needs the Windows Driver Kit and Microsoft signing); true accent conversion (no usable streaming model exists); screens for tags, folders and speaker renaming; a mobile app; phone-call recording; a meeting-bot option; the Inno Setup installer.</p>
+      </div>
+      <div class="card">
+        <h3>Built, not tested end to end</h3>
+        <p>Hearing the cleaned microphone inside a real call; real room echo; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
+      </div>
+    </div>
+    <div class="note">Known issue: at some window sizes the top button row and the capture-mode controls are wider than the window, so some controls are clipped. The layout needs fixing before release.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    MeetWise · built by Leandro Carlini · <a href="https://github.com/lcarlini/MeetWise">source on GitHub</a> · <a href="https://github.com/lcarlini/MeetWise#readme">README</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,5 +1,7 @@
 # MeetWise
 
+**Product page: [lcarlini.github.io/MeetWise](https://lcarlini.github.io/MeetWise/)**, with screenshots and a full walkthrough of the app.
+
 A local-first AI meeting assistant for Windows 11. It captures conversations without a bot, transcribes them live, cleans up your microphone, and turns meetings into notes, action items and answers. Everything runs on your PC; an API key is an optional upgrade, never a requirement.
 
 Built for any machine, and fast on NVIDIA GPUs (developed on an RTX 4070 Laptop, 8 GB).
