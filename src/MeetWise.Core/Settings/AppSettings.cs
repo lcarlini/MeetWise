@@ -33,6 +33,13 @@ public sealed class AppSettings
     public int ReminderMinutes { get; set; } = 5;
     public bool AutoDetectMeetings { get; set; } = true;
 
+    /// <summary>Translate other participants' speech into this language as live captions (null = off).</summary>
+    public string? CaptionTranslateTo { get; set; }
+
+    /// <summary>Speak my own speech, translated to this language ("same" = re-voice in a neutral accent), into SpeakDeviceId (null = off).</summary>
+    public string? SpeakTranslationTo { get; set; }
+    public string? SpeakDeviceId { get; set; }
+
     public string TemplateId { get; set; } = "general";
     public string? UserNickname { get; set; }
     public string? UserOccupation { get; set; }

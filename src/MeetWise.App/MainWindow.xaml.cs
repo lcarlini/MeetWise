@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private readonly SecretStore _secrets = new();
     private readonly LlmFactory _llmFactory;
     private Glossary _glossary;
+    private LiveTranslation? _translation;
     private readonly TaskbarIcon _tray;
     private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly CalendarService _calendar;
@@ -132,6 +133,9 @@ public partial class MainWindow : Window
             _recorder.DataAvailable += OnAudio;
         }
 
+        _translation?.Dispose();
+        _translation = new LiveTranslation(_settings, GetLlmAsync, (who, original, translated) => Dispatcher.BeginInvoke(() =>
+            _lines.Add(new TranscriptLine { Speaker = "→", Text = translated })));
         RecordButton.Content = "Stop recording";
         StatusText.Text = wantsText ? $"Recording and transcribing live → {_settings.OutputFolder}" : $"Recording → {_settings.OutputFolder}";
     }
@@ -152,6 +156,7 @@ public partial class MainWindow : Window
         if (e.IsFinal)
         {
             _openPartials.Remove(e.Channel);
+            _translation?.OnFinal(e);
             if (_meetingId != 0) _db.AddSegment(_meetingId, e.Channel, e.StartSec, e.EndSec, e.Text);
         }
         TranscriptList.ScrollIntoView(_lines[^1]);
@@ -164,8 +169,38 @@ public partial class MainWindow : Window
         var live = _live;
         _live = null;
         live?.Dispose();
+        _translation?.Dispose();
+        _translation = null;
         RecordButton.Content = "Start recording";
         StatusText.Text = $"Saved meeting #{_meetingId} ({_lines.Count} lines) in {Path.GetFullPath(_settings.OutputFolder)}";
+        if (_recorder.LoopbackPath is { } loop && _settings.Preset != CapturePreset.AudioOnly)
+            _ = LabelSpeakersAsync(_meetingId, loop);
+    }
+
+    /// <summary>Background pass after the meeting: split "Others" into Speaker 1, Speaker 2... and use enrolled names when voices match.</summary>
+    private async Task LabelSpeakersAsync(long meetingId, string loopbackWav)
+    {
+        try
+        {
+            var manager = new ModelManager(_http);
+            await manager.EnsureAsync(ModelCatalog.DiarizationSegmentation);
+            await manager.EnsureAsync(ModelCatalog.SpeakerEmbedding);
+            int changed = await Task.Run(() =>
+            {
+                var audio = AudioFile.ReadMono16k(loopbackWav);
+                using var diarizer = new Diarizer(
+                    Path.Combine(manager.PathFor(ModelCatalog.DiarizationSegmentation), "model.onnx"),
+                    manager.PathFor(ModelCatalog.SpeakerEmbedding));
+                using var profiles = new SpeakerProfiles(manager.PathFor(ModelCatalog.SpeakerEmbedding),
+                    Path.Combine(AppPaths.Roaming, "voices", "voices.json"));
+                return SpeakerLabeling.Apply(_db, meetingId, audio, diarizer, profiles);
+            });
+            Dispatcher.Invoke(() => StatusText.Text = $"Meeting #{meetingId}: identified speakers in {changed} segment(s).");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Speaker labeling skipped: " + ex.Message);
+        }
     }
 
     private async void Import_Click(object sender, RoutedEventArgs e)
@@ -253,6 +288,48 @@ public partial class MainWindow : Window
         {
             AppLog.Error("Enrollment failed", ex);
             StatusText.Text = "Enrollment failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>Second pass with Whisper (GPU when the acceleration pack is installed), then speaker labeling again.</summary>
+    private async void Refine_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var meeting = _db.ListMeetings(limit: 1).FirstOrDefault();
+            if (meeting?.AudioPath is not { } mic || !File.Exists(mic)) { StatusText.Text = "The latest meeting has no recorded audio to refine."; return; }
+            var loop = mic.EndsWith(".mic.wav", StringComparison.OrdinalIgnoreCase) ? mic[..^8] + ".loop.wav" : null;
+
+            var manager = new ModelManager(_http);
+            var model = ModelCatalog.WhisperFor(_hardware);
+            if (_hardware.Tier == HardwareTier.A_NvidiaRtx && !CudaRuntimePack.IsInstalled())
+            {
+                var ask = MessageBox.Show("Install the GPU acceleration pack (about 400 MB from NVIDIA)? Refining is several times faster on your graphics card. Choose No to use the CPU.",
+                    "MeetWise", MessageBoxButton.YesNo);
+                if (ask == MessageBoxResult.Yes)
+                    await CudaRuntimePack.EnsureAsync(_http, new Progress<double>(p => StatusText.Text = $"Downloading GPU acceleration pack… {p:P0}"));
+            }
+            CudaRuntimePack.Activate();
+            await manager.EnsureAsync(model, new Progress<double>(p => StatusText.Text = $"Downloading {model.Id}… {p:P0}"));
+
+            var progress = new Progress<double>(p => StatusText.Text = $"Refining \"{meeting.Title}\"… {p:P0}");
+            int count = await Task.Run(async () =>
+            {
+                using var whisper = new WhisperTranscriber(manager.PathFor(model));
+                return await MeetingRefiner.RefineAsync(_db, meeting.Id, mic, loop, whisper, _settings.SpokenLanguage, _settings.Glossary, progress);
+            });
+
+            var segments = _db.GetTranscript(meeting.Id);
+            _lines.Clear();
+            foreach (var s in segments)
+                _lines.Add(new TranscriptLine { Speaker = s.Speaker + ":", Time = $"[{TimeSpan.FromSeconds(s.StartSec):mm\\:ss}] ", Text = _glossary.Apply(s.Text) });
+            StatusText.Text = $"Refined: {count} segment(s) with {model.Id}.";
+            if (loop is not null && File.Exists(loop)) _ = LabelSpeakersAsync(meeting.Id, loop);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Refine failed", ex);
+            StatusText.Text = "Refine failed: " + ex.Message;
         }
     }
 

@@ -130,6 +130,24 @@ public sealed class MeetingDatabase
         return list;
     }
 
+    public void SetSegmentSpeaker(long segmentId, string speaker)
+    {
+        using var c = Open();
+        Exec(c, "UPDATE segments SET speaker=$s WHERE id=$i", ("$s", speaker), ("$i", segmentId));
+    }
+
+    /// <summary>Replaces a meeting's transcript (used by the high-accuracy second pass). FTS stays in sync through the triggers.</summary>
+    public void ReplaceSegments(long meetingId, IEnumerable<(string Speaker, double Start, double End, string Text, string? Language)> segments)
+    {
+        using var c = Open();
+        using var tx = c.BeginTransaction();
+        Exec(c, "DELETE FROM segments WHERE meeting_id=$m", ("$m", meetingId));
+        foreach (var s in segments)
+            Exec(c, "INSERT INTO segments(meeting_id, speaker, start_sec, end_sec, text, language) VALUES($m,$s,$a,$b,$t,$l)",
+                ("$m", meetingId), ("$s", s.Speaker), ("$a", s.Start), ("$b", s.End), ("$t", s.Text), ("$l", s.Language));
+        tx.Commit();
+    }
+
     public void SetSummary(long meetingId, string summaryJson)
     {
         using var c = Open();

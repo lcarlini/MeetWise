@@ -54,6 +54,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox x:Name="SearchBox" Height="28" VerticalContentAlignment="Center" KeyDown="SearchBox_KeyDown"
                      ToolTip="Type words to search transcripts, or a question for Ask"/>
@@ -62,6 +63,7 @@
             <Button Grid.Column="3" Content="Ask" Width="56" Margin="8,0,0,0" Click="Ask_Click" ToolTip="Ask a question about your meetings (uses the text box)"/>
             <Button Grid.Column="4" Content="Notes" Width="64" Margin="8,0,0,0" Click="Notes_Click" ToolTip="Generate notes and action items for the latest meeting"/>
             <Button Grid.Column="5" Content="Actions" Width="64" Margin="8,0,0,0" Click="Actions_Click" ToolTip="Open action items across all meetings"/>
+            <Button Grid.Column="7" Content="Refine" Width="64" Margin="8,0,0,0" Click="Refine_Click" ToolTip="Re-transcribe the latest meeting with the high-accuracy multilingual model"/>
             <Button Grid.Column="6" Content="Settings" Width="70" Margin="8,0,0,0" Click="Settings_Click"/>
         </Grid>
 

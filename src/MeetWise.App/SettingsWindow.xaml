@@ -22,6 +22,8 @@
             </StackPanel>
 
             <TextBlock Text="Meeting notes" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
+            <TextBlock Text="Spoken language (used by the Refine pass)"/>
+            <ComboBox x:Name="LangCombo" Margin="0,2,0,8" DisplayMemberPath="Value" SelectedValuePath="Key"/>
             <TextBlock Text="Template"/>
             <ComboBox x:Name="TemplateCombo" DisplayMemberPath="Name" SelectedValuePath="Id" Margin="0,2,0,8"/>
             <TextBlock Text="About you (makes summaries and answers fit your role)"/>
@@ -38,6 +40,15 @@
                 <Button Content="Medical" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="medical"/>
                 <Button Content="Legal" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="legal"/>
             </WrapPanel>
+
+            <TextBlock Text="Live translation" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
+            <TextBlock Text="Show other people's speech as captions in"/>
+            <ComboBox x:Name="CaptionLangCombo" Margin="0,2,0,8" DisplayMemberPath="Value" SelectedValuePath="Key"/>
+            <TextBlock Text="Speak my voice, translated to (output goes to the device below)"/>
+            <ComboBox x:Name="SpeakLangCombo" Margin="0,2,0,4" DisplayMemberPath="Value" SelectedValuePath="Key"/>
+            <ComboBox x:Name="SpeakDeviceCombo" Margin="0,0,0,4" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,8"
+                       Text="Translation uses the AI engine selected above. Spoken output uses the offline Windows voices installed for that language (Settings, Time and language, Speech). Choose the virtual microphone as the device so meeting apps hear it."/>
 
             <TextBlock Text="Calendar" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
             <TextBlock TextWrapping="Wrap" Opacity="0.7" Text="Paste your calendar's iCal feed address (Google Calendar: Settings, Integrate calendar, Secret address in iCal format; Outlook: published calendar ICS link)."/>

@@ -16,6 +16,19 @@ public partial class SettingsWindow : Window
         _settings = settings;
         _secrets = secrets;
 
+        var captionLangs = new Dictionary<string, string> { [""] = "Off" };
+        foreach (var kv in Languages.Where(k => k.Key != "auto")) captionLangs[kv.Key] = kv.Value;
+        var speakLangs = new Dictionary<string, string>(captionLangs) { ["same"] = "Same language (re-voice in a neutral accent)" };
+        CaptionLangCombo.ItemsSource = captionLangs;
+        CaptionLangCombo.SelectedValue = settings.CaptionTranslateTo ?? "";
+        SpeakLangCombo.ItemsSource = speakLangs;
+        SpeakLangCombo.SelectedValue = settings.SpeakTranslationTo ?? "";
+        SpeakDeviceCombo.ItemsSource = new MeetWise.Audio.AudioDeviceService().GetRenderDevices()
+            .OrderByDescending(d => MeetWise.Audio.AudioDeviceService.LooksVirtual(d.Name)).ToList();
+        SpeakDeviceCombo.SelectedValue = settings.SpeakDeviceId;
+        LangCombo.ItemsSource = Languages;
+        LangCombo.SelectedValue = settings.SpokenLanguage;
+        if (LangCombo.SelectedValue is null) LangCombo.SelectedValue = "auto";
         TemplateCombo.ItemsSource = MeetingTemplates.All;
         TemplateCombo.SelectedValue = settings.TemplateId;
         ProviderCombo.SelectedIndex = settings.CloudProvider switch { "anthropic" => 1, "openai-compatible" => 2, _ => 0 };
@@ -30,6 +43,13 @@ public partial class SettingsWindow : Window
         DetectCheck.IsChecked = settings.AutoDetectMeetings;
         ProviderCombo_Changed(null, null!);
     }
+
+    public static readonly Dictionary<string, string> Languages = new()
+    {
+        ["auto"] = "Detect automatically", ["en"] = "English", ["pt"] = "Portuguese", ["es"] = "Spanish", ["fr"] = "French",
+        ["de"] = "German", ["it"] = "Italian", ["nl"] = "Dutch", ["pl"] = "Polish", ["hi"] = "Hindi", ["ko"] = "Korean",
+        ["ja"] = "Japanese", ["zh"] = "Chinese", ["ru"] = "Russian", ["tr"] = "Turkish", ["ar"] = "Arabic"
+    };
 
     private string SelectedProvider => (ProviderCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
 
@@ -72,6 +92,15 @@ public partial class SettingsWindow : Window
         _settings.LlmModel = ModelBox.Text.Trim().Length == 0 ? null : ModelBox.Text.Trim();
         if (KeyBox.Password.Length > 0 && provider.Length > 0)
             _secrets.Set(provider == "anthropic" ? LlmFactory.AnthropicKeyName : LlmFactory.OpenAiKeyName, KeyBox.Password);
+        _settings.SpokenLanguage = LangCombo.SelectedValue as string ?? "auto";
+        _settings.CaptionTranslateTo = (CaptionLangCombo.SelectedValue as string) is { Length: > 0 } cl ? cl : null;
+        _settings.SpeakTranslationTo = (SpeakLangCombo.SelectedValue as string) is { Length: > 0 } sl ? sl : null;
+        _settings.SpeakDeviceId = SpeakDeviceCombo.SelectedValue as string;
+        if (_settings.SpeakTranslationTo is not null && _settings.SpeakDeviceId is null)
+        {
+            MessageBox.Show("Choose the output device for the spoken translation.", "MeetWise");
+            return;
+        }
         _settings.TemplateId = TemplateCombo.SelectedValue as string ?? "general";
         _settings.UserNickname = NickBox.Text.Trim().Length == 0 ? null : NickBox.Text.Trim();
         _settings.UserOccupation = OccBox.Text.Trim().Length == 0 ? null : OccBox.Text.Trim();
