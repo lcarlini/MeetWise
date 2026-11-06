@@ -19,7 +19,8 @@ public class WhisperTests
         using var w = new WhisperTranscriber(model);
         var segs = await w.TranscribeAsync(audio, "auto");
         var text = string.Join(" ", segs.Select(s => s.Text)).ToUpperInvariant();
-        if (gpuPack) Assert.Contains(log, l => l.Contains("found 1 CUDA devices", StringComparison.OrdinalIgnoreCase)); // really ran on the GPU
+        // With the GPU pack installed the CUDA runtime must be the one in use (the library loads once per process, so check the state, not a log line).
+        if (gpuPack) Assert.Equal(Whisper.net.LibraryLoader.RuntimeLibrary.Cuda, Whisper.net.LibraryLoader.RuntimeOptions.LoadedLibrary);
         Assert.Contains("NIGHTFALL", text);
         Assert.Contains("BROTHELS", text);
         Assert.Equal("en", segs[0].Language);
