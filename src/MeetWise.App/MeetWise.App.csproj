@@ -4,6 +4,7 @@
     <ProjectReference Include="..\MeetWise.Core\MeetWise.Core.csproj" />
     <ProjectReference Include="..\MeetWise.Audio\MeetWise.Audio.csproj" />
     <ProjectReference Include="..\MeetWise.Storage\MeetWise.Storage.csproj" />
+    <ProjectReference Include="..\MeetWise.Intelligence\MeetWise.Intelligence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

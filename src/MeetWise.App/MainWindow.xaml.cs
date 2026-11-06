@@ -10,6 +10,7 @@ using MeetWise.Core.Hardware;
 using MeetWise.Core.Logging;
 using MeetWise.Core.Models;
 using MeetWise.Core.Settings;
+using MeetWise.Intelligence;
 using MeetWise.Speech;
 using MeetWise.Storage;
 
@@ -26,6 +27,9 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, TranscriptLine> _openPartials = new();
     private readonly HttpClient _http = new();
     private readonly EnhancementController _enhance;
+    private readonly SecretStore _secrets = new();
+    private readonly LlmFactory _llmFactory;
+    private Glossary _glossary;
     private LiveTranscriber? _live;
     private long _meetingId;
 
@@ -46,6 +50,8 @@ public partial class MainWindow : Window
         NoiseCombo.SelectedItem = _settings.NoiseCancellation;
         TranscriptList.ItemsSource = _lines;
         _enhance = new EnhancementController(_http);
+        _llmFactory = new LlmFactory(_http, _secrets);
+        _glossary = new Glossary(_settings.Glossary);
         var outs = new AudioDeviceService().GetRenderDevices().OrderByDescending(d => AudioDeviceService.LooksVirtual(d.Name)).ToList();
         RenderCombo.ItemsSource = outs;
         RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
@@ -114,6 +120,7 @@ public partial class MainWindow : Window
 
     private void OnTranscript(TranscriptEvent e)
     {
+        if (e.IsFinal) e = e with { Text = _glossary.Apply(e.Text) };
         if (!_openPartials.TryGetValue(e.Channel, out var line))
         {
             line = new TranscriptLine { Speaker = e.Channel + ":", Time = $"[{TimeSpan.FromSeconds(e.StartSec):mm\\:ss}] " };
@@ -225,6 +232,110 @@ public partial class MainWindow : Window
         {
             AppLog.Error("Enrollment failed", ex);
             StatusText.Text = "Enrollment failed: " + ex.Message;
+        }
+    }
+
+    private UserProfile Profile => new(_settings.UserNickname, _settings.UserOccupation, _settings.UserContext);
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSettings();
+        var dlg = new SettingsWindow(_settings, _secrets) { Owner = this };
+        if (dlg.ShowDialog() == true)
+        {
+            _store.Save(_settings);
+            _glossary = new Glossary(_settings.Glossary);
+            StatusText.Text = "Settings saved.";
+        }
+    }
+
+    private async Task<ILlmProvider> GetLlmAsync()
+    {
+        var progress = new Progress<double>(p => StatusText.Text = $"Downloading the local AI model… {p:P0} (one time)");
+        return await _llmFactory.GetAsync(_settings, _hardware, progress);
+    }
+
+    private async void Notes_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var meeting = _db.ListMeetings(limit: 1).FirstOrDefault();
+            if (meeting is null) { StatusText.Text = "No meetings yet."; return; }
+            var segments = _db.GetTranscript(meeting.Id);
+            if (segments.Count == 0) { StatusText.Text = "The latest meeting has no transcript."; return; }
+            StatusText.Text = "Preparing the AI model…";
+            var llm = await GetLlmAsync();
+            StatusText.Text = $"Writing notes with {llm.Name}…";
+            var notes = await new MeetingIntelligence(llm).GenerateNotesAsync(
+                MeetingIntelligence.FormatTranscript(segments), _settings.TemplateId, Profile, meeting.StartedUtc);
+            MeetingIntelligence.Save(_db, meeting.Id, notes);
+
+            _lines.Clear();
+            void Add(string head, IEnumerable<string> items)
+            {
+                foreach (var i in items) _lines.Add(new TranscriptLine { Speaker = head, Text = i });
+            }
+            _lines.Add(new TranscriptLine { Speaker = "Summary:", Text = notes.Summary });
+            Add("Key point:", notes.KeyPoints);
+            Add("Decision:", notes.Decisions);
+            Add("Risk:", notes.Risks);
+            Add("Action:", notes.ActionItems.Select(a => $"{a.Text}{(a.Owner is null ? "" : " — " + a.Owner)}{(a.DueUtc is null ? "" : " (due " + a.DueUtc.Value.ToString("yyyy-MM-dd") + ")")}"));
+            StatusText.Text = $"Notes for \"{meeting.Title}\" saved; {notes.ActionItems.Count} action item(s) added.";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Notes failed", ex);
+            StatusText.Text = "Notes failed: " + ex.Message;
+        }
+    }
+
+    private async void Ask_Click(object sender, RoutedEventArgs e)
+    {
+        var question = SearchBox.Text.Trim();
+        if (question.Length == 0) { StatusText.Text = "Type a question in the box first."; return; }
+        try
+        {
+            StatusText.Text = "Preparing the AI model…";
+            var llm = await GetLlmAsync();
+            StatusText.Text = "Thinking…";
+            var answer = await new AskMeetWise(llm, _db).AskAsync(question, null, Profile);
+            _lines.Clear();
+            _lines.Add(new TranscriptLine { Speaker = "Answer:", Text = answer.Text });
+            foreach (var s in answer.Sources)
+                _lines.Add(new TranscriptLine { Speaker = $"#{s.MeetingId} {s.Speaker}:", Time = $"[{TimeSpan.FromSeconds(s.StartSec):mm\\:ss}] ", Text = s.Text });
+            StatusText.Text = $"Answered from {answer.Sources.Count} transcript passage(s).";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Ask failed", ex);
+            StatusText.Text = "Ask failed: " + ex.Message;
+        }
+    }
+
+    private async void Actions_Click(object sender, RoutedEventArgs e)
+    {
+        var items = _db.OpenActionItems();
+        _lines.Clear();
+        foreach (var a in items)
+            _lines.Add(new TranscriptLine
+            {
+                Speaker = $"#{a.MeetingId}",
+                Time = a.DueUtc is { } d ? $"[{d:yyyy-MM-dd}] " : "",
+                Text = a.Text + (a.Owner is null ? "" : " — " + a.Owner)
+            });
+        StatusText.Text = $"{items.Count} open action item(s).";
+        if (items.Count == 0 || string.IsNullOrWhiteSpace(_settings.WebhookUrl)) return;
+        if (MessageBox.Show($"Send {items.Count} action item(s) to your webhook?", "MeetWise", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        try
+        {
+            var latest = _db.ListMeetings(limit: 1).First();
+            await new WebhookExporter(_http).ExportAsync(_settings.WebhookUrl, latest, items);
+            StatusText.Text = "Action items sent to the webhook.";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Webhook failed", ex);
+            StatusText.Text = "Webhook failed: " + ex.Message;
         }
     }
 

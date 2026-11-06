@@ -2,7 +2,7 @@ using Microsoft.Data.Sqlite;
 
 namespace MeetWise.Storage;
 
-public sealed record Meeting(long Id, string Title, DateTime StartedUtc, string? SeriesId, string? Folder, string? AudioPath);
+public sealed record Meeting(long Id, string Title, DateTime StartedUtc, string? SeriesId, string? Folder, string? AudioPath, string? Summary);
 public sealed record TranscriptSegment(long Id, long MeetingId, string Speaker, double StartSec, double EndSec, string Text, string? Language);
 public sealed record ActionItem(long Id, long MeetingId, string Text, string? Owner, DateTime? DueUtc, bool Done);
 
@@ -127,6 +127,99 @@ public sealed class MeetingDatabase
         var list = new List<TranscriptSegment>();
         while (r.Read())
             list.Add(new TranscriptSegment(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetDouble(3), r.GetDouble(4), r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6)));
+        return list;
+    }
+
+    public void SetSummary(long meetingId, string summaryJson)
+    {
+        using var c = Open();
+        Exec(c, "UPDATE meetings SET summary=$s WHERE id=$m", ("$s", summaryJson), ("$m", meetingId));
+    }
+
+    public void SetActionItemDone(long id, bool done)
+    {
+        using var c = Open();
+        Exec(c, "UPDATE action_items SET done=$d WHERE id=$i", ("$d", done ? 1 : 0), ("$i", id));
+    }
+
+    public void AddTag(long meetingId, string tag)
+    {
+        using var c = Open();
+        Exec(c, "INSERT OR IGNORE INTO tags(meeting_id, tag) VALUES($m,$t)", ("$m", meetingId), ("$t", tag.Trim().ToLowerInvariant()));
+    }
+
+    public void MoveToFolder(long meetingId, string? folder)
+    {
+        using var c = Open();
+        Exec(c, "UPDATE meetings SET folder=$f WHERE id=$m", ("$f", folder), ("$m", meetingId));
+    }
+
+    private static Meeting ReadMeeting(SqliteDataReader r) => new(r.GetInt64(0), r.GetString(1),
+        DateTime.Parse(r.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+        r.IsDBNull(3) ? null : r.GetString(3), r.IsDBNull(4) ? null : r.GetString(4),
+        r.IsDBNull(5) ? null : r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6));
+
+    public Meeting? GetMeeting(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT id, title, started_utc, series_id, folder, audio_path, summary FROM meetings WHERE id=$i";
+        cmd.Parameters.AddWithValue("$i", id);
+        using var r = cmd.ExecuteReader();
+        return r.Read() ? ReadMeeting(r) : null;
+    }
+
+    /// <summary>Meetings newest first; optionally only one recurring series, folder or tag.</summary>
+    public IReadOnlyList<Meeting> ListMeetings(string? seriesId = null, string? folder = null, string? tag = null, int limit = 200)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT id, title, started_utc, series_id, folder, audio_path, summary FROM meetings
+            WHERE ($s IS NULL OR series_id=$s) AND ($f IS NULL OR folder=$f)
+              AND ($t IS NULL OR id IN (SELECT meeting_id FROM tags WHERE tag=$t))
+            ORDER BY started_utc DESC LIMIT $n";
+        cmd.Parameters.AddWithValue("$s", (object?)seriesId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$f", (object?)folder ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$t", (object?)tag?.Trim().ToLowerInvariant() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$n", limit);
+        using var r = cmd.ExecuteReader();
+        var list = new List<Meeting>();
+        while (r.Read()) list.Add(ReadMeeting(r));
+        return list;
+    }
+
+    /// <summary>Retrieval for Ask MeetWise: any of the keywords may match (OR), best BM25 first, optionally within one meeting.</summary>
+    public IReadOnlyList<TranscriptSegment> SearchAny(IEnumerable<string> keywords, long? meetingId = null, int limit = 12)
+    {
+        var terms = keywords.Select(k => k.Trim()).Where(k => k.Length > 1)
+            .Select(k => "\"" + k.Replace("\"", "\"\"") + "\"").Distinct().ToList();
+        if (terms.Count == 0) return Array.Empty<TranscriptSegment>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT s.id, s.meeting_id, s.speaker, s.start_sec, s.end_sec, s.text, s.language
+            FROM segments_fts f JOIN segments s ON s.id = f.rowid
+            WHERE segments_fts MATCH $q AND ($m IS NULL OR s.meeting_id=$m) ORDER BY rank LIMIT $n";
+        cmd.Parameters.AddWithValue("$q", string.Join(" OR ", terms));
+        cmd.Parameters.AddWithValue("$m", (object?)meetingId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$n", limit);
+        using var r = cmd.ExecuteReader();
+        var list = new List<TranscriptSegment>();
+        while (r.Read())
+            list.Add(new TranscriptSegment(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetDouble(3), r.GetDouble(4), r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6)));
+        return list;
+    }
+
+    public IReadOnlyList<ActionItem> ActionItemsFor(long meetingId)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT id, meeting_id, text, owner, due_utc, done FROM action_items WHERE meeting_id=$m ORDER BY id";
+        cmd.Parameters.AddWithValue("$m", meetingId);
+        using var r = cmd.ExecuteReader();
+        var list = new List<ActionItem>();
+        while (r.Read())
+            list.Add(new ActionItem(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3),
+                r.IsDBNull(4) ? null : DateTime.Parse(r.GetString(4), null, System.Globalization.DateTimeStyles.RoundtripKind), r.GetInt32(5) != 0));
         return list;
     }
 

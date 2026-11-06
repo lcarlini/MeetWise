@@ -20,6 +20,11 @@ public sealed class AudioRoute : IDisposable
     private readonly BufferedWaveProvider _buffer;
     private readonly LoopbackReference? _reference;
     private long _overflows;
+    private int _overloadedBlocks;
+
+    /// <summary>Raised (once) when processing cannot keep up with real time, so the caller can switch to a lighter mode.</summary>
+    public event Action? Overloaded;
+    public double RecentLoad => _engine.RecentLoad;
 
     public long Overflows => Interlocked.Read(ref _overflows);
     public double RealTimeFactor => _engine.RealTimeFactor;
@@ -63,6 +68,8 @@ public sealed class AudioRoute : IDisposable
             var mono = ToMono(samples, fmt.Channels);
             var far = _reference?.Read(mono.Length);
             var cleaned = _engine.Process(mono, far);
+            if (_engine.RecentLoad > 0.8) { if (++_overloadedBlocks == 150) Overloaded?.Invoke(); }
+            else _overloadedBlocks = 0;
             if (cleaned.Length == 0) return;
             var bytes = new byte[cleaned.Length * 4];
             Buffer.BlockCopy(cleaned, 0, bytes, 0, bytes.Length);

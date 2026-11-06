@@ -1,0 +1,51 @@
+<Window x:Class="MeetWise.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MeetWise settings" Width="560" Height="640" WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <TextBlock Text="AI engine" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,2,0,8"
+                       Text="Everything runs locally by default. An API key is an optional upgrade for notes and answers; audio never leaves this PC."/>
+            <ComboBox x:Name="ProviderCombo" SelectionChanged="ProviderCombo_Changed" Margin="0,0,0,8">
+                <ComboBoxItem Tag="" Content="Local model (private, offline)"/>
+                <ComboBoxItem Tag="anthropic" Content="Anthropic (Claude) API key"/>
+                <ComboBoxItem Tag="openai-compatible" Content="OpenAI-compatible server (OpenAI, Ollama, LM Studio)"/>
+            </ComboBox>
+            <StackPanel x:Name="CloudPanel">
+                <TextBlock Text="Server URL (OpenAI-compatible only)"/>
+                <TextBox x:Name="UrlBox" Margin="0,2,0,8"/>
+                <TextBlock Text="Model name"/>
+                <TextBox x:Name="ModelBox" Margin="0,2,0,8"/>
+                <TextBlock Text="API key (stored encrypted for your Windows account)"/>
+                <PasswordBox x:Name="KeyBox" Margin="0,2,0,8"/>
+            </StackPanel>
+
+            <TextBlock Text="Meeting notes" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
+            <TextBlock Text="Template"/>
+            <ComboBox x:Name="TemplateCombo" DisplayMemberPath="Name" SelectedValuePath="Id" Margin="0,2,0,8"/>
+            <TextBlock Text="About you (makes summaries and answers fit your role)"/>
+            <TextBox x:Name="NickBox" Margin="0,2,0,4" ToolTip="Nickname"/>
+            <TextBox x:Name="OccBox" Margin="0,0,0,4" ToolTip="Occupation"/>
+            <TextBox x:Name="CtxBox" Height="52" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,8" ToolTip="Professional context"/>
+
+            <TextBlock Text="Custom vocabulary (one term per line)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,4"/>
+            <TextBox x:Name="GlossaryBox" Height="90" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+            <WrapPanel Margin="0,4,0,8">
+                <TextBlock Text="Add starter kit: " VerticalAlignment="Center"/>
+                <Button Content="Software" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="software"/>
+                <Button Content="Sales" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="sales"/>
+                <Button Content="Medical" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="medical"/>
+                <Button Content="Legal" Margin="4,0" Padding="8,2" Click="Kit_Click" Tag="legal"/>
+            </WrapPanel>
+
+            <TextBlock Text="Action item webhook URL (optional)" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,4"/>
+            <TextBox x:Name="WebhookBox" Margin="0,0,0,16"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Width="90" Margin="0,0,8,0" IsCancel="True"/>
+                <Button Content="Save" Width="90" IsDefault="True" Click="Save_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

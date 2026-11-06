@@ -25,9 +25,10 @@ public class RealtimeTests
     private static float[] AudioRoute48(float[] x, int ch) => MeetWise.Audio.AudioRoute.ToMono(x, ch);
 
     [Theory]
-    [InlineData(EnhancerKind.Light, "gtcrn_simple.onnx")]
-    [InlineData(EnhancerKind.FullBand, "dpdfnet2_48khz_hr.onnx")]
-    public void Engine_RunsFasterThanRealtime_With10msBlocks(EnhancerKind kind, string file)
+    [InlineData(EnhancerKind.Light, "gtcrn_simple.onnx", 0.5)]
+    [InlineData(EnhancerKind.FullBand, "dpdfnet2.onnx", 0.5)]
+    [InlineData(EnhancerKind.FullBand, "dpdfnet2_48khz_hr.onnx", 0.75)] // Max mode: heavier by design; the app downgrades if it is overloaded
+    public void Engine_RunsFasterThanRealtime_With10msBlocks(EnhancerKind kind, string file, double limit)
     {
         var model = Path.Combine(Models, "enhance", file);
         if (!File.Exists(model)) return;
@@ -40,8 +41,8 @@ public class RealtimeTests
             for (int k = 0; k < block.Length; k++) { block[k] = (float)(rng.NextDouble() - 0.5) * 0.2f; far[k] = (float)(rng.NextDouble() - 0.5) * 0.2f; }
             engine.Process((float[])block.Clone(), (float[])far.Clone());
         }
-        _out.WriteLine($"{kind} RTF={engine.RealTimeFactor:0.000}");
-        Assert.True(engine.RealTimeFactor < 0.5, $"{kind} RTF {engine.RealTimeFactor:0.00} too slow for real time");
+        _out.WriteLine($"{kind}/{file} RTF={engine.RealTimeFactor:0.000}");
+        Assert.True(engine.RealTimeFactor < limit, $"{kind}/{file} RTF {engine.RealTimeFactor:0.00} exceeds {limit}");
     }
 
     [Fact]

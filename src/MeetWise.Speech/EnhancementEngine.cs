@@ -16,8 +16,12 @@ public sealed class EnhancementEngine : IDisposable
     private readonly int _inputRate;
     private long _procTicks;
     private double _audioSeconds;
+    private double _recentLoad;
 
     public int OutputSampleRate { get; }
+
+    /// <summary>Smoothed per-block load (processing time / block duration) over roughly the last second.</summary>
+    public double RecentLoad => _recentLoad;
 
     /// <summary>Processing time divided by audio time. Must stay well below 1.0 to run in real time.</summary>
     public double RealTimeFactor => _audioSeconds <= 0 ? 0 : (_procTicks / (double)Stopwatch.Frequency) / _audioSeconds;
@@ -50,8 +54,11 @@ public sealed class EnhancementEngine : IDisposable
         if (_enhancer is not null)
             x = _enhancer.Process(x, _inputRate);
         SoftLimit(x);
-        _procTicks += Stopwatch.GetTimestamp() - t0;
-        _audioSeconds += mic.Length / (double)_inputRate;
+        long elapsed = Stopwatch.GetTimestamp() - t0;
+        _procTicks += elapsed;
+        double blockSeconds = mic.Length / (double)_inputRate;
+        _audioSeconds += blockSeconds;
+        _recentLoad += 0.02 * ((elapsed / (double)Stopwatch.Frequency) / blockSeconds - _recentLoad);
         return x;
     }
 
