@@ -73,6 +73,34 @@ public static class SelfTest
         Check("FFmpeg", () => FFmpegPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first video recording)"), required: false);
         Check("Monitors", () => string.Join("; ", new MonitorService().GetMonitors().Select(m => m.ToString())), required: false);
         Check("yt-dlp (YouTube import)", () => YtDlpPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first YouTube import)"), required: false);
+        Check("Echo canceller (synthetic echo)", () =>
+        {
+            // a made-up far end with a 90 ms delayed, reverberant copy in the microphone: no audio device is touched
+            const int rate = 16000;
+            var rng = new Random(7);
+            var far = new float[rate * 8];
+            float lp = 0;
+            for (int i = 0; i < far.Length; i++) { lp = 0.7f * lp + 0.3f * (float)(rng.NextDouble() * 2 - 1); far[i] = lp * (0.5f + 0.5f * (float)Math.Sin(2 * Math.PI * 3 * i / rate)); }
+            var path = new float[rate * 40 / 1000];
+            path[0] = 0.5f;
+            for (int k = 1; k < path.Length; k++) path[k] = (float)((rng.NextDouble() * 2 - 1) * 0.2 * Math.Exp(-k / (rate * 0.012)));
+            int delay = rate * 90 / 1000;
+            var echo = new float[far.Length];
+            for (int i = 0; i < echo.Length; i++)
+            {
+                float acc = 0;
+                for (int k = 0; k < path.Length && i - delay - k >= 0; k++) acc += path[k] * far[i - delay - k];
+                echo[i] = acc;
+            }
+            var aec = new EchoCanceller(rate);
+            var o = new float[far.Length];
+            for (int i = 0; i + 160 <= far.Length; i += 160) aec.Process(echo.AsSpan(i, 160), far.AsSpan(i, 160)).CopyTo(o, i);
+            double before = 0, after = 0;
+            for (int i = rate * 5; i < far.Length; i++) { before += echo[i] * echo[i]; after += o[i] * o[i]; }
+            double erle = 10 * Math.Log10(before / Math.Max(after, 1e-12));
+            if (!aec.Stats.DelayLocked) throw new InvalidOperationException("the delay estimator did not lock on a clear echo");
+            return erle >= 10 ? $"{erle:0} dB of echo removed, delay found: {aec.Stats.DelayMs + 25:0} ms" : throw new InvalidOperationException($"only {erle:0.0} dB of echo removed");
+        }, required: false);
         Check("MeetWise Microphone (virtual cable)", () =>
         {
             var mic = VirtualMic.FindMic();

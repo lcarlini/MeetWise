@@ -20,6 +20,9 @@ public sealed class EnhancementEngine : IDisposable
 
     public int OutputSampleRate { get; }
 
+    /// <summary>What the echo canceller is doing (null when it is off).</summary>
+    public EchoStats? EchoStats => _aec?.Stats;
+
     /// <summary>Smoothed per-block load (processing time / block duration) over roughly the last second.</summary>
     public double RecentLoad => _recentLoad;
 
@@ -40,7 +43,8 @@ public sealed class EnhancementEngine : IDisposable
         {
             OutputSampleRate = inputRate;
         }
-        if (options.EchoCancellation) _aec = new EchoCanceller(inputRate);
+        // the delay search runs on a pool thread: the audio callback only copies samples into a ring
+        if (options.EchoCancellation) _aec = new EchoCanceller(inputRate, options: new EchoOptions(BackgroundEstimation: true));
     }
 
     /// <param name="mic">Mono microphone block at the input rate.</param>

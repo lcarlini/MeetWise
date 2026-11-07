@@ -52,6 +52,15 @@ public sealed class EnhancementController : IDisposable
         _route.StatusChanged += st => StatusChanged?.Invoke(st);
         _route.Start();
         _watcher = new DeviceWatcher(() => _route?.DevicesChanged());
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+    }
+
+    /// <summary>After sleep, hibernate or a Bluetooth reconnect, streams that were open before are stale: rebuild the route (debounced like any device change).</summary>
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != Microsoft.Win32.PowerModes.Resume) return;
+        AppLog.Info("System resumed: rebuilding the microphone route.");
+        _watcher?.Poke();
     }
 
     private async Task<EnhancementOptions> BuildOptionsAsync(IProgress<double>? progress)
@@ -119,6 +128,7 @@ public sealed class EnhancementController : IDisposable
 
     public void Stop()
     {
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _watcher?.Dispose();
         _watcher = null;
         _route?.Dispose();

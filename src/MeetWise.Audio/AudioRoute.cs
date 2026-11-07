@@ -31,7 +31,8 @@ public sealed class AudioRoute : IAudioRoute
     private readonly WasapiCapture _capture;
     private readonly WasapiOut _out;
     private readonly BufferedWaveProvider _buffer;
-    private readonly LoopbackReference? _reference;
+    private LoopbackReference? _reference;
+    private float[] _far = Array.Empty<float>();
     private long _overflows;
     private int _overloadedBlocks;
 
@@ -66,9 +67,19 @@ public sealed class AudioRoute : IAudioRoute
         _out.PlaybackStopped += (_, e) => { if (e.Exception is not null) Failed?.Invoke("Playback stopped: " + e.Exception.Message); };
     }
 
+    /// <summary>What the echo canceller is doing right now (null when echo cancellation is off).</summary>
+    public EchoStats? EchoStats => _engine.EchoStats;
+
     public void Start()
     {
-        _reference?.Start();
+        try { _reference?.Start(_capture.WaveFormat.SampleRate); }
+        catch (Exception ex)
+        {
+            // Echo cancellation is an extra: if the loopback cannot start, the microphone must still be cleaned.
+            AppLog.Warn("Echo reference unavailable, continuing without echo cancellation: " + ex.Message);
+            _reference?.Dispose();
+            _reference = null;
+        }
         _out.Play();
         _capture.StartRecording();
         AppLog.Info($"Route started: {_capDevice.FriendlyName} -> {_renderDevice.FriendlyName}");
@@ -81,7 +92,13 @@ public sealed class AudioRoute : IAudioRoute
             var fmt = _capture.WaveFormat;
             var samples = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
             var mono = ToMono(samples, fmt.Channels);
-            var far = _reference?.Read(mono.Length);
+            float[]? far = null;
+            if (_reference is { } reference)
+            {
+                if (_far.Length != mono.Length) _far = new float[mono.Length];
+                reference.Read(_far);
+                far = _far;
+            }
             var cleaned = _engine.Process(mono, far);
             if (_engine.RecentLoad > 0.8) { if (++_overloadedBlocks == 150) Overloaded?.Invoke(); }
             else _overloadedBlocks = 0;
@@ -121,46 +138,121 @@ public sealed class AudioRoute : IAudioRoute
     }
 }
 
-/// <summary>Captures what plays on a speaker endpoint so the echo canceller knows what to remove.</summary>
+/// <summary>
+/// Captures what plays on a speaker endpoint so the echo canceller knows what to remove. The capture is converted to mono at the
+/// microphone's sample rate and placed on a <see cref="ReferenceTimeline"/>. If the loopback stream dies (speakers changed their format, driver
+/// reset, device removed) it restarts itself with growing delays and the reference is silent in between: the microphone path is never affected.
+/// </summary>
 public sealed class LoopbackReference : IDisposable
 {
-    private readonly WasapiLoopbackCapture _cap;
-    private readonly Queue<float> _ring = new();
-    private readonly object _gate = new();
-    private const int MaxSamples = 48000;
+    private readonly MMDevice _speakers;
+    private readonly object _life = new();
+    private WasapiLoopbackCapture? _cap;
+    private ReferenceTimeline? _timeline;
+    private ReferenceResampler? _resampler;
+    private Timer? _retry;
+    private int _targetRate, _attempt;
+    private bool _disposed;
 
-    public LoopbackReference(MMDevice speakers) => _cap = new WasapiLoopbackCapture(speakers);
+    /// <summary>True while a loopback stream is running.</summary>
+    public bool Healthy { get; private set; }
 
-    public void Start()
+    /// <summary>Times the loopback stream had to be restarted.</summary>
+    public int Restarts { get; private set; }
+
+    public LoopbackReference(MMDevice speakers) => _speakers = speakers;
+
+    /// <param name="targetRate">Sample rate of the microphone blocks the reference will be read against.</param>
+    public void Start(int targetRate)
     {
-        _cap.DataAvailable += (_, e) =>
-        {
-            var fmt = _cap.WaveFormat;
-            var floats = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
-            var mono = AudioRoute.ToMono(floats, fmt.Channels);
-            lock (_gate)
-            {
-                foreach (var v in mono) _ring.Enqueue(v);
-                while (_ring.Count > MaxSamples) _ring.Dequeue();
-            }
-        };
-        _cap.StartRecording();
+        _targetRate = targetRate;
+        _timeline = new ReferenceTimeline(targetRate);
+        StartCapture();
     }
 
-    /// <summary>Returns exactly count samples, zero-padded when the reference is behind.</summary>
-    public float[] Read(int count)
+    private void StartCapture()
     {
-        var o = new float[count];
-        lock (_gate)
+        lock (_life)
         {
-            for (int i = 0; i < count && _ring.Count > 0; i++) o[i] = _ring.Dequeue();
+            if (_disposed) return;
+            var cap = new WasapiLoopbackCapture(_speakers);
+            _resampler = new ReferenceResampler(cap.WaveFormat.SampleRate, _targetRate);
+            cap.DataAvailable += (_, e) => OnData(cap, e);
+            cap.RecordingStopped += (_, e) => OnStopped(cap, e.Exception);
+            cap.StartRecording();
+            _cap = cap;
+            Healthy = true;
+            _attempt = 0;
         }
-        return o;
+    }
+
+    private void OnData(WasapiLoopbackCapture cap, WaveInEventArgs e)
+    {
+        try
+        {
+            var fmt = cap.WaveFormat;
+            var floats = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
+            var mono = AudioRoute.ToMono(floats, fmt.Channels);
+            var timeline = _timeline!;
+            _resampler!.Process(mono, timeline.Write);
+        }
+        catch (Exception ex) { AppLog.Warn("Echo reference block dropped: " + ex.Message); }
+    }
+
+    private void OnStopped(WasapiLoopbackCapture cap, Exception? error)
+    {
+        lock (_life)
+        {
+            if (_disposed || !ReferenceEquals(cap, _cap)) return;
+            Healthy = false;
+            _cap = null;
+            try { cap.Dispose(); } catch (Exception) { }
+            ScheduleRestart(error?.Message);
+        }
+    }
+
+    private void ScheduleRestart(string? why)
+    {
+        // caller holds _life
+        _attempt++;
+        var delay = TimeSpan.FromSeconds(Math.Min(15, Math.Pow(2, _attempt - 1)));
+        AppLog.Warn($"Echo reference stopped ({why ?? "no error"}); restarting in {delay.TotalSeconds:0.#} s.");
+        _retry?.Dispose();
+        _retry = new Timer(_ =>
+        {
+            try
+            {
+                Restarts++;
+                StartCapture();
+            }
+            catch (Exception ex)
+            {
+                lock (_life) { if (!_disposed) ScheduleRestart(ex.Message); }
+            }
+        }, null, delay, Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>Fills <paramref name="dest"/> with the reference for the next microphone block (zeros while the reference is unavailable).</summary>
+    public void Read(Span<float> dest)
+    {
+        var t = _timeline;
+        if (t is null) { dest.Clear(); return; }
+        t.Read(dest);
     }
 
     public void Dispose()
     {
-        try { _cap.StopRecording(); } catch { }
-        _cap.Dispose();
+        lock (_life)
+        {
+            _disposed = true;
+            _retry?.Dispose();
+            var cap = _cap;
+            _cap = null;
+            if (cap is not null)
+            {
+                try { cap.StopRecording(); } catch (Exception) { }
+                try { cap.Dispose(); } catch (Exception) { }
+            }
+        }
     }
 }
