@@ -85,7 +85,7 @@ public partial class MainWindow : Window
         FillLanguages();
         _calendar = new CalendarService(http);
         _reminders = new ReminderScheduler(TimeSpan.FromMinutes(settings.ReminderMinutes));
-        _tray = new TaskbarIcon { Icon = System.Drawing.SystemIcons.Application, ToolTipText = "MeetWise" };
+        _tray = new TaskbarIcon { Icon = AppIcon(), ToolTipText = "MeetWise" };
         _tray.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
         _tray.TrayBalloonTipClicked += async (_, _) =>
         {
@@ -101,6 +101,17 @@ public partial class MainWindow : Window
         _ = RecoverUnfinishedVideosAsync();
 
         SourceInitialized += (_, _) => OnHandleReady();
+    }
+
+    /// <summary>The MeetWise icon for the tray (embedded as a WPF resource); the generic icon if it cannot be read.</summary>
+    private static System.Drawing.Icon AppIcon()
+    {
+        try
+        {
+            var stream = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/meetwise.ico"))!.Stream;
+            return new System.Drawing.Icon(stream);
+        }
+        catch (Exception) { return System.Drawing.SystemIcons.Application; }
     }
 
     private void OnHandleReady()

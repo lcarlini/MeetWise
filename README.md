@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/img/icon.png" width="96" alt="MeetWise icon"></p>
+
 # MeetWise
 
 **Product page: [lcarlini.github.io/MeetWise](https://lcarlini.github.io/MeetWise/)**, with screenshots and a full walkthrough of the app.

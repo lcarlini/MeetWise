@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeetWise: local-first AI meeting assistant</title>
+<link rel="icon" type="image/png" href="img/icon.png">
+<link rel="apple-touch-icon" href="img/icon.png">
 <meta name="description" content="MeetWise captures, transcribes, cleans up and summarises your meetings on your own Windows PC.">
 <style>
   :root {
@@ -31,6 +33,7 @@
   header.hero { position: relative; overflow: hidden; padding: 96px 0 72px;
     background: radial-gradient(1200px 500px at 15% -10%, #2a3f8f55, transparent 60%),
                 radial-gradient(900px 500px at 90% 0%, #0f6e6255, transparent 60%), var(--bg); }
+  .app-icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.35); margin-bottom: 14px; display: block; }
   .hero h1 { font-size: clamp(40px, 6vw, 64px); letter-spacing: -.02em; }
   .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 32px; }
@@ -77,6 +80,7 @@
 <header class="hero">
   <div class="wrap">
     <div class="eyebrow">Local-first · Windows 11 · No meeting bot</div>
+    <img class="app-icon" src="img/icon.png" alt="MeetWise icon" width="96" height="96">
     <h1>Meet<span>Wise</span></h1>
     <p class="lead">An AI assistant for your meetings that runs on your own PC. It records what you hear and say, cleans up your microphone, transcribes live, and turns each meeting into notes, action items and answers. Everything works offline; a cloud API key is an optional upgrade.</p>
     <div class="badges">
