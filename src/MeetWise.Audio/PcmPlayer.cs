@@ -36,6 +36,9 @@ public sealed class PcmPlayer : IDisposable
         _buffer.AddSamples(bytes, 0, bytes.Length);
     }
 
+    /// <summary>Stops the translated voice immediately: whatever is queued is discarded (a sentence already handed to the device ends within its buffer, about 60 ms).</summary>
+    public void Clear() => _buffer.ClearBuffer();
+
     public void Dispose()
     {
         try { _out.Stop(); } catch { }

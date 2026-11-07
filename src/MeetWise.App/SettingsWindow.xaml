@@ -47,6 +47,9 @@
             <TextBlock Text="Speak my voice, translated to (output goes to the device below)"/>
             <ComboBox x:Name="SpeakLangCombo" Margin="0,2,0,4" DisplayMemberPath="Value" SelectedValuePath="Key"/>
             <ComboBox x:Name="SpeakDeviceCombo" Margin="0,0,0,4" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
+            <TextBlock Text="Caption delay" Margin="0,4,0,0"/>
+            <ComboBox x:Name="HoldCombo" Margin="0,2,0,4" DisplayMemberPath="Value" SelectedValuePath="Key"/>
+            <CheckBox x:Name="FallbackCheck" Margin="0,4,0,4"><TextBlock TextWrapping="Wrap" Text="If a cloud AI fails, use the local model when it is installed (the local model never sends anything out)"/></CheckBox>
             <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,8"
                        Text="Translation uses the AI engine selected above. Spoken output uses the offline Windows voices installed for that language (Settings, Time and language, Speech). Choose the virtual microphone as the device so meeting apps hear it."/>
 

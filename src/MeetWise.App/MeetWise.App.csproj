@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Resource Include="meetwise.ico" />
+    <InternalsVisibleTo Include="MeetWise.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

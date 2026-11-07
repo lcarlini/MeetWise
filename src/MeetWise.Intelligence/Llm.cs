@@ -54,7 +54,7 @@ public sealed class AnthropicProvider : ILlmProvider
         req.Headers.Add("anthropic-version", "2023-06-01");
         using var resp = await _http.SendAsync(req, ct);
         var json = await resp.Content.ReadAsStringAsync(ct);
-        if (!resp.IsSuccessStatusCode) throw new HttpRequestException($"Anthropic API {(int)resp.StatusCode}: {Truncate(json)}");
+        if (!resp.IsSuccessStatusCode) throw new HttpRequestException($"Anthropic API {(int)resp.StatusCode}: {Truncate(json)}", null, resp.StatusCode);
 
         var sb = new StringBuilder();
         foreach (var block in JsonNode.Parse(json)!["content"]!.AsArray())
@@ -97,7 +97,7 @@ public sealed class OpenAiCompatibleProvider : ILlmProvider
         if (!string.IsNullOrEmpty(_apiKey)) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         using var resp = await _http.SendAsync(req, ct);
         var json = await resp.Content.ReadAsStringAsync(ct);
-        if (!resp.IsSuccessStatusCode) throw new HttpRequestException($"LLM API {(int)resp.StatusCode}: {AnthropicProvider.Truncate(json)}");
+        if (!resp.IsSuccessStatusCode) throw new HttpRequestException($"LLM API {(int)resp.StatusCode}: {AnthropicProvider.Truncate(json)}", null, resp.StatusCode);
         return JsonNode.Parse(json)!["choices"]![0]!["message"]!["content"]!.GetValue<string>();
     }
 }

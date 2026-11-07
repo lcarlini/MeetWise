@@ -29,6 +29,34 @@ public sealed class LlmFactory
         (_cached as IDisposable)?.Dispose();
         _cached = null;
         _cachedKey = null;
+        _localCached?.Dispose();
+        _localCached = null;
+    }
+
+    /// <summary>
+    /// True when using these settings would send transcript text to a server outside this PC: the Anthropic API, or an OpenAI-compatible endpoint that is not
+    /// on this machine. The local model and a server on localhost (Ollama, LM Studio) keep everything on the PC.
+    /// </summary>
+    public static bool SendsDataOffDevice(AppSettings s)
+    {
+        if (s.CloudProvider == "anthropic") return true;
+        if (s.CloudProvider != "openai-compatible") return false;
+        if (!Uri.TryCreate(s.LlmBaseUrl, UriKind.Absolute, out var uri)) return true; // unknown destination: assume the worst
+        return !(uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private LocalLlamaProvider? _localCached;
+
+    /// <summary>The local model, only when it is already on disk (a call must never start a multi-gigabyte download). Used as the fallback when a cloud model fails.</summary>
+    public async Task<ILlmProvider?> TryGetInstalledLocalAsync(HardwareProfile hw)
+    {
+        if (_cached is LocalLlamaProvider alreadyLocal) return alreadyLocal; // never load the same model twice: 8 GB of VRAM fit one
+        if (_localCached is not null) return _localCached;
+        var (model, layers) = ModelCatalog.LlmFor(hw);
+        var manager = new ModelManager(_http);
+        if (!manager.IsInstalled(model)) return null;
+        _localCached = await Task.Run(() => new LocalLlamaProvider(manager.PathFor(model), 8192, layers));
+        return _localCached;
     }
 
     public async Task<ILlmProvider> GetAsync(AppSettings s, HardwareProfile hw, IProgress<double>? progress = null)

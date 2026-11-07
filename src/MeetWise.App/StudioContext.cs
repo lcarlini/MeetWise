@@ -38,10 +38,10 @@ public sealed class StudioContext
     public event Action<long>? ItemOpened;
     public event Action? ItemsChanged;
     public event Action<string>? Toast;
-    public event Action<string>? TranslationLine;
+    public event Action<MeetWise.Intelligence.TranslatedCaption>? TranslationLine;
 
     /// <summary>A translated caption from live translation; the Record page shows it under the live subtitles.</summary>
-    public void RaiseTranslation(string text) => TranslationLine?.Invoke(text);
+    public void RaiseTranslation(MeetWise.Intelligence.TranslatedCaption caption) => TranslationLine?.Invoke(caption);
 
     public void OpenItem(long id, string page)
     {

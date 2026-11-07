@@ -26,6 +26,9 @@ public partial class SettingsWindow : Window
         SpeakDeviceCombo.ItemsSource = new MeetWise.Audio.AudioDeviceService().GetRenderDevices()
             .OrderByDescending(d => MeetWise.Audio.AudioDeviceService.LooksVirtual(d.Name)).ToList();
         SpeakDeviceCombo.SelectedValue = settings.SpeakDeviceId;
+        HoldCombo.ItemsSource = new Dictionary<int, string> { [600] = "Fastest (captions may show half a sentence)", [1200] = "Balanced", [2500] = "Whole sentences (slower)" };
+        HoldCombo.SelectedValue = settings.TranslationHoldMs is 600 or 2500 ? settings.TranslationHoldMs : 1200;
+        FallbackCheck.IsChecked = settings.TranslationFallbackToLocal;
         LangCombo.ItemsSource = Languages;
         LangCombo.SelectedValue = settings.SpokenLanguage;
         if (LangCombo.SelectedValue is null) LangCombo.SelectedValue = "auto";
@@ -97,10 +100,20 @@ public partial class SettingsWindow : Window
         _settings.CaptionTranslateTo = (CaptionLangCombo.SelectedValue as string) is { Length: > 0 } cl ? cl : null;
         _settings.SpeakTranslationTo = (SpeakLangCombo.SelectedValue as string) is { Length: > 0 } sl ? sl : null;
         _settings.SpeakDeviceId = SpeakDeviceCombo.SelectedValue as string;
-        if (_settings.SpeakTranslationTo is not null && _settings.SpeakDeviceId is null)
+        _settings.TranslationHoldMs = HoldCombo.SelectedValue is int hold ? hold : 1200;
+        _settings.TranslationFallbackToLocal = FallbackCheck.IsChecked == true;
+        if (_settings.SpeakTranslationTo is not null)
         {
-            MessageBox.Show("Choose the output device for the spoken translation.", "MeetWise");
-            return;
+            var en = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+            var available = en.EnumerateAudioEndPoints(NAudio.CoreAudioApi.DataFlow.Render, NAudio.CoreAudioApi.DeviceState.Active).Select(d => d.ID).ToList();
+            string? defaultId = null;
+            try { defaultId = en.GetDefaultAudioEndpoint(NAudio.CoreAudioApi.DataFlow.Render, NAudio.CoreAudioApi.Role.Multimedia).ID; } catch (Exception) { }
+            var (problem, message) = MeetWise.Audio.SpeechRouting.Check(_settings.SpeakDeviceId, available, defaultId);
+            if (problem != MeetWise.Audio.SpeechRoutingProblem.None)
+            {
+                MessageBox.Show(message, "MeetWise");
+                return;
+            }
         }
         _settings.TemplateId = TemplateCombo.SelectedValue as string ?? "general";
         _settings.UserNickname = NickBox.Text.Trim().Length == 0 ? null : NickBox.Text.Trim();

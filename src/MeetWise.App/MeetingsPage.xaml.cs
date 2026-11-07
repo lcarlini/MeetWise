@@ -59,14 +59,15 @@ public partial class MeetingsPage : UserControl
     {
         SaveSettings();
         _translation?.Dispose();
-        _translation = new LiveTranslation(_settings, GetLlmAsync, (who, original, translated) => _ctx.RaiseTranslation(translated));
+        _translation = new LiveTranslation(_settings, GetLlmAsync, () => _ctx.Llm.TryGetInstalledLocalAsync(_ctx.Hardware),
+            caption => _ctx.RaiseTranslation(caption), status => _ctx.ShowToast(status.Message));
         _ = StartCoachAsync();
     }
 
     private void OnCue(SubtitleCue cue)
     {
         if (cue.Speaker == "Me") _coach?.Submit(cue.Text, cue.Start, cue.End);
-        _translation?.OnFinal(new TranscriptEvent(cue.Speaker, true, cue.Text, cue.Start, cue.End));
+        _translation?.OnFinal(new MeetWise.Intelligence.LiveUtterance(cue.Speaker, cue.Text, cue.Language, cue.Start, cue.End));
     }
 
     private void OnSessionStopped()

@@ -41,6 +41,12 @@ public sealed class AppSettings
     public string? SpeakTranslationTo { get; set; }
     public string? SpeakDeviceId { get; set; }
 
+    /// <summary>How long live translation waits for an unfinished sentence before translating it anyway. Lower is faster, higher gives the model whole sentences.</summary>
+    public int TranslationHoldMs { get; set; } = 1200;
+
+    /// <summary>When a cloud model fails, try the local model for live translation if it is already installed. Local processing never sends anything anywhere.</summary>
+    public bool TranslationFallbackToLocal { get; set; } = true;
+
     /// <summary>The physical microphone to clean. Never the virtual MeetWise Microphone (that would create a feedback loop).</summary>
     public string? PhysicalMicId { get; set; }
 

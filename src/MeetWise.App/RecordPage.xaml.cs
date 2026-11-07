@@ -51,7 +51,14 @@ public partial class RecordPage : UserControl
         Loc.Instance.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(Loc.Language)) FillChoices(); };
 
         var d = Dispatcher;
-        _ctx.TranslationLine += t => d.BeginInvoke(() => { var row = new SubtitleRow { Start = _ctx.Session.Elapsed.TotalSeconds, Speaker = "→", Text = t }; _rows.Add(row); LiveList.ScrollIntoView(row); });
+        _ctx.TranslationLine += c => d.BeginInvoke(() =>
+        {
+            // a translation that failed still shows what was said, marked, so nothing the other side says is lost; "≈" marks one that looked doubtful
+            var text = c.Translated is null ? c.Original : (c.Doubtful ? "≈ " : "") + c.Translated;
+            var row = new SubtitleRow { Start = _ctx.Session.Elapsed.TotalSeconds, Speaker = c.Translated is null ? "⚠" : "→", Text = text };
+            _rows.Add(row);
+            LiveList.ScrollIntoView(row);
+        });
         _ctx.Session.Cue += c => d.BeginInvoke(() => OnCue(c));
         _ctx.Session.Partial += (ch, t) => d.BeginInvoke(() => OnPartial(ch, t));
         _ctx.Session.Speaking += (ch, on) => d.BeginInvoke(() => OnSpeaking(ch, on));
