@@ -11,8 +11,21 @@ namespace MeetWise.Audio;
 /// virtual cable input (or the MeetWise virtual microphone) so meeting apps receive the cleaned voice, or route
 /// incoming meeting audio through it to clean the other participants.
 /// </summary>
-public sealed class AudioRoute : IDisposable
+public interface IAudioRoute : IDisposable
 {
+    void Start();
+
+    /// <summary>Raised when capture or playback stops because of an error (device unplugged, driver restarted, format change).</summary>
+    event Action<string>? Failed;
+
+    double RecentLoad { get; }
+    long Overflows { get; }
+}
+
+public sealed class AudioRoute : IAudioRoute
+{
+    public event Action<string>? Failed;
+
     private readonly EnhancementEngine _engine;
     private readonly MMDevice _capDevice, _renderDevice;
     private readonly WasapiCapture _capture;
@@ -49,6 +62,8 @@ public sealed class AudioRoute : IDisposable
         _out = new WasapiOut(render, AudioClientShareMode.Shared, true, 30);
         _out.Init(chain);
         _capture.DataAvailable += OnData;
+        _capture.RecordingStopped += (_, e) => { if (e.Exception is not null) Failed?.Invoke("Capture stopped: " + e.Exception.Message); };
+        _out.PlaybackStopped += (_, e) => { if (e.Exception is not null) Failed?.Invoke("Playback stopped: " + e.Exception.Message); };
     }
 
     public void Start()

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MeetWise.Core.Logging;
 using MeetWise.Core.Models;
+using MeetWise.Core.Settings;
 
 namespace MeetWise.Audio;
 
@@ -15,12 +16,26 @@ public sealed class VideoRecorder : IDisposable
 {
     private static readonly VideoEncoder[] Hardware =
     {
-        new("h264_nvenc", "NVIDIA NVENC", new[] { "-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "30", "-b:v", "0" }),
-        new("h264_qsv", "Intel Quick Sync", new[] { "-c:v", "h264_qsv", "-global_quality", "30" }),
-        new("h264_amf", "AMD AMF", new[] { "-c:v", "h264_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "28", "-qp_p", "30" })
+        new("h264_nvenc", "NVIDIA NVENC", Array.Empty<string>()),
+        new("h264_qsv", "Intel Quick Sync", Array.Empty<string>()),
+        new("h264_amf", "AMD AMF", Array.Empty<string>())
     };
 
-    public static readonly VideoEncoder Software = new("libx264", "Software (x264)", new[] { "-c:v", "libx264", "-preset", "veryfast", "-crf", "28" });
+    public static readonly VideoEncoder Software = new("libx264", "Software (x264)", Array.Empty<string>());
+
+    /// <summary>Encoder settings per quality preset, taken from RecBox (real-time screen capture: slower x264 presets drop frames).</summary>
+    public static string[] ArgsFor(VideoEncoder encoder, QualityPreset quality) => encoder.Codec switch
+    {
+        "h264_nvenc" => new[] { "-c:v", "h264_nvenc", "-preset", quality switch { QualityPreset.LowFileSize => "p4", QualityPreset.MaximumQuality => "p6", _ => "p5" },
+            "-rc", "vbr", "-cq", Q(quality, 32, 25, 19), "-b:v", "0", "-pix_fmt", "yuv420p" },
+        "h264_qsv" => new[] { "-c:v", "h264_qsv", "-global_quality", Q(quality, 32, 25, 19), "-pix_fmt", "nv12" },
+        "h264_amf" => new[] { "-c:v", "h264_amf", "-quality", quality switch { QualityPreset.LowFileSize => "speed", QualityPreset.MaximumQuality => "quality", _ => "balanced" },
+            "-rc", "cqp", "-qp_i", Q(quality, 32, 25, 19), "-qp_p", Q(quality, 32, 25, 19), "-pix_fmt", "yuv420p" },
+        _ => new[] { "-c:v", "libx264", "-preset", quality == QualityPreset.MaximumQuality ? "faster" : "veryfast", "-crf", Q(quality, 28, 23, 19), "-pix_fmt", "yuv420p" }
+    };
+
+    private static string Q(QualityPreset q, int low, int balanced, int max)
+        => (q switch { QualityPreset.LowFileSize => low, QualityPreset.MaximumQuality => max, _ => balanced }).ToString();
 
     private readonly string _ffmpeg;
     private Process? _process;
@@ -46,7 +61,7 @@ public sealed class VideoRecorder : IDisposable
             if (!encoders.Contains(hw.Codec, StringComparison.OrdinalIgnoreCase)) continue;
             try
             {
-                var args = "-hide_banner -loglevel error -f lavfi -i color=c=black:s=1280x720:r=30 -frames:v 15 " + string.Join(' ', hw.Args) + " -pix_fmt yuv420p -f null -";
+                var args = "-hide_banner -loglevel error -f lavfi -i color=c=black:s=1280x720:r=30 -frames:v 15 " + string.Join(' ', ArgsFor(hw, QualityPreset.Balanced)) + " -f null -";
                 if ((await FFmpegPack.RunAsync(ffmpeg, args)).ExitCode == 0) list.Add(hw);
             }
             catch (Exception ex) { AppLog.Info($"Encoder {hw.Codec} unavailable: {ex.Message}"); }
@@ -64,15 +79,18 @@ public sealed class VideoRecorder : IDisposable
         return (w & ~1, h & ~1);
     }
 
-    public void Start(string outputMkv, VideoEncoder encoder, int fps = 30, bool drawMouse = true)
+    public void Start(string outputMkv, VideoEncoder encoder, int fps = 30, bool drawMouse = true, MonitorInfo? monitor = null,
+        QualityPreset quality = QualityPreset.Balanced)
     {
         if (IsRecording) throw new InvalidOperationException("Already recording video.");
-        var (w, h) = PrimaryScreenSize();
+        // a chosen monitor is captured in native pixels at its position on the virtual desktop; otherwise the primary screen
+        var (w, h) = monitor is null ? PrimaryScreenSize() : (monitor.Width, monitor.Height);
+        int x = monitor?.BoundsX ?? 0, y = monitor?.BoundsY ?? 0;
         OutputPath = outputMkv;
         Encoder = encoder;
         var args = $"-hide_banner -loglevel error -f gdigrab -framerate {fps} -draw_mouse {(drawMouse ? 1 : 0)} " +
-                   $"-offset_x 0 -offset_y 0 -video_size {w}x{h} -i desktop " +
-                   string.Join(' ', encoder.Args) + " -pix_fmt yuv420p -f matroska \"" + outputMkv + "\"";
+                   $"-offset_x {x} -offset_y {y} -video_size {w}x{h} -i desktop " +
+                   string.Join(' ', ArgsFor(encoder, quality)) + " -f matroska \"" + outputMkv + "\"";
         var psi = new ProcessStartInfo(_ffmpeg, args)
         {
             RedirectStandardInput = true,
@@ -82,9 +100,10 @@ public sealed class VideoRecorder : IDisposable
         };
         StartedUtc = DateTime.UtcNow;
         _process = Process.Start(psi) ?? throw new InvalidOperationException("Could not start FFmpeg.");
+        ChildProcessJob.Assign(_process);
         _process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _stderrTail = e.Data; };
         _process.BeginErrorReadLine();
-        AppLog.Info($"Video started with {encoder.Name}: {outputMkv}");
+        AppLog.Info($"Video started with {encoder.Name} ({quality}) on {w}x{h}@{x},{y}: {outputMkv}");
     }
 
     /// <summary>Asks FFmpeg to finish the file cleanly ('q'), and kills it if it does not stop in time.</summary>

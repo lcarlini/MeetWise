@@ -23,11 +23,14 @@ public sealed class WhisperTranscriber : IDisposable
 
     /// <param name="samples16k">Mono 16 kHz float audio.</param>
     /// <param name="language">ISO code such as "en", "pt", "es", "hi", "ko", or "auto" to detect.</param>
+    /// <param name="translateToEnglish">Output English whatever the spoken language is.</param>
     /// <param name="vocabulary">Custom terms (names, acronyms) given to the model as a prompt so it spells them correctly.</param>
     public async Task<IReadOnlyList<WhisperSegment>> TranscribeAsync(float[] samples16k, string language = "auto",
-        IEnumerable<string>? vocabulary = null, int threads = 4, IProgress<double>? progress = null, CancellationToken ct = default)
+        IEnumerable<string>? vocabulary = null, int threads = 4, IProgress<double>? progress = null, CancellationToken ct = default,
+        bool translateToEnglish = false)
     {
         var builder = _factory.CreateBuilder().WithLanguage(language).WithThreads(threads);
+        if (translateToEnglish) builder = builder.WithTranslate(); // Whisper's own speech-to-English task: no extra model needed
         var terms = vocabulary?.Where(v => v.Length > 0).Take(120).ToList();
         if (terms is { Count: > 0 }) builder = builder.WithPrompt("Vocabulary: " + string.Join(", ", terms) + ".");
         await using var processor = builder.Build();

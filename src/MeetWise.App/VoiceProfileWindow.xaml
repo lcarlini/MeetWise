@@ -1,0 +1,52 @@
+<Window x:Class="MeetWise.App.VoiceProfileWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Train your voice" Width="620" Height="620" MinWidth="520" MinHeight="560"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Train your voice" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,14"
+                   Text="MeetWise learns your voice from six short sentences, so it can pass only your voice and filter out everyone else. Sit where you normally take calls, in a quiet room, and speak naturally. Only you should speak while training."/>
+
+        <TextBlock x:Name="StepText" Grid.Row="2" FontWeight="SemiBold"/>
+        <Border Grid.Row="3" Margin="0,6,0,10" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="#FFC8D0E0" Background="#FFF5F7FC">
+            <TextBlock x:Name="PromptText" FontSize="20" TextWrapping="Wrap" MinHeight="64"/>
+        </Border>
+
+        <StackPanel Grid.Row="4">
+            <ProgressBar x:Name="LevelBar" Height="10" Minimum="0" Maximum="1"/>
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="ResultText" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button x:Name="RecordButton" Grid.Column="1" Content="Start recording" Width="150" Height="38" Click="Record_Click" IsEnabled="False"/>
+            </Grid>
+        </StackPanel>
+
+        <StackPanel x:Name="TestPanel" Grid.Row="5" Margin="0,18,0,0" Visibility="Collapsed">
+            <TextBlock Text="Test your voice lock" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                       Text="Record 10 seconds while you talk and someone else (or a video) talks too. Use headphones so the recording does not pick up the playback."/>
+            <WrapPanel>
+                <Button x:Name="TestRecordButton" Content="Record 10 s test" Width="140" Height="32" Margin="0,0,8,0" Click="TestRecord_Click"/>
+                <Button x:Name="PlayRawButton" Content="Play original" Width="120" Height="32" Margin="0,0,8,0" IsEnabled="False" Click="PlayRaw_Click"/>
+                <Button x:Name="PlayLockedButton" Content="Play voice-locked" Width="140" Height="32" IsEnabled="False" Click="PlayLocked_Click"/>
+            </WrapPanel>
+            <TextBlock x:Name="TestResultText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="DeleteButton" Content="Delete my voice profile" Margin="0,0,8,0" Padding="12,4" Visibility="Collapsed" Click="Delete_Click"/>
+            <Button x:Name="CloseButton" Content="Close" Width="90" Padding="12,4" IsCancel="True" IsDefault="True" Click="Close_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

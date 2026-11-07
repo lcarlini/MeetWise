@@ -1,0 +1,130 @@
+<UserControl x:Class="MeetWise.App.RecordPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:MeetWise.App">
+    <Grid Margin="28">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="330"/>
+            <ColumnDefinition Width="24"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- what and how to record -->
+        <Border Style="{StaticResource Card}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="{local:T rec.title}" Style="{StaticResource CardTitle}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{local:T rec.monitor}" Style="{StaticResource Caption}"/>
+                    <ComboBox x:Name="MonitorCombo" Margin="0,4,0,12"/>
+
+                    <TextBlock Text="{local:T rec.mic}" Style="{StaticResource Caption}"/>
+                    <ComboBox x:Name="MicCombo" Margin="0,4,0,8"/>
+                    <CheckBox x:Name="UseMicCheck" Content="{local:T rec.usemic}" IsChecked="True" Margin="0,0,0,2"/>
+                    <CheckBox x:Name="SystemAudioCheck" Content="{local:T rec.sysaudio}" IsChecked="True" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="{local:T rec.mode}" Style="{StaticResource Caption}"/>
+                    <ComboBox x:Name="ModeCombo" Margin="0,4,0,12" SelectionChanged="Mode_Changed"/>
+
+                    <TextBlock x:Name="QualityLabel" Text="{local:T rec.quality}" Style="{StaticResource Caption}"/>
+                    <ComboBox x:Name="QualityCombo" Margin="0,4,0,12"/>
+
+                    <TextBlock Text="{local:T rec.language}" Style="{StaticResource Caption}"/>
+                    <ComboBox x:Name="LanguageCombo" Margin="0,4,0,8"/>
+                    <CheckBox x:Name="EnglishCheck" Content="{local:T rec.english}" Margin="0,0,0,2"/>
+                    <CheckBox x:Name="SrtCheck" Content="{local:T rec.srt}" IsChecked="True" Margin="0,0,0,2"/>
+                    <CheckBox x:Name="FloatingCheck" Content="{local:T rec.floating}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="{local:T rec.hotkey}" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="16"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- record button, timer, levels -->
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="RecordButton" Width="96" Height="96" Click="Record_Click" Background="Transparent" BorderThickness="0" Padding="0"
+                            Cursor="Hand" AutomationProperties.Name="Start or stop recording">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button"><ContentPresenter/></ControlTemplate>
+                        </Button.Template>
+                        <Grid Width="96" Height="96">
+                            <Ellipse Stroke="{StaticResource Studio.Record}" StrokeThickness="4"/>
+                            <Border x:Name="RecordDot" Width="68" Height="68" CornerRadius="34" Background="{StaticResource Studio.Record}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+
+                    <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="TimerText" Text="00:00:00" FontSize="40" FontWeight="SemiBold" FontFamily="Consolas"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="RecDotIndicator" Width="10" Height="10" Fill="{StaticResource Studio.Record}" Visibility="Collapsed" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="StateText" Style="{StaticResource Caption}" FontSize="13"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="{local:T rec.mic}" Style="{StaticResource Caption}"/>
+                        <ProgressBar x:Name="MicLevel" Minimum="0" Maximum="1" Height="8" Margin="0,3,0,10"/>
+                        <TextBlock Text="{local:T rec.sysaudio}" Style="{StaticResource Caption}"/>
+                        <ProgressBar x:Name="SystemLevel" Minimum="0" Maximum="1" Height="8" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- live subtitles -->
+            <Border Grid.Row="2" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel>
+                        <TextBlock Text="{local:T rec.live}" Style="{StaticResource CardTitle}" DockPanel.Dock="Left"/>
+                        <TextBlock x:Name="ListeningText" Text="{local:T rec.speaking}" Style="{StaticResource Caption}" DockPanel.Dock="Right"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    </DockPanel>
+                    <ListBox x:Name="LiveList" Grid.Row="1" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock TextWrapping="Wrap" FontSize="17" Margin="0,3">
+                                    <Run Text="{Binding Time, Mode=OneWay}" Foreground="Gray" FontSize="12"/>
+                                    <Run Text="{Binding Speaker, Mode=OneWay}" FontWeight="SemiBold"/>
+                                    <Run Text="{Binding Text, Mode=OneWay}"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock x:Name="EmptyText" Grid.Row="1" Text="{local:T rec.waiting}" Style="{StaticResource Caption}" FontSize="14"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                </Grid>
+            </Border>
+
+            <!-- status, and what to do after a recording -->
+            <StackPanel Grid.Row="3" Margin="0,14,0,0">
+                <Border x:Name="SavedBanner" Style="{StaticResource Card}" Visibility="Collapsed" Margin="0,0,0,8">
+                    <DockPanel>
+                        <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
+                            <Button Content="{local:T rec.open}" Click="OpenSubtitles_Click" Style="{StaticResource AccentButton}" Margin="8,0,0,0"/>
+                            <Button x:Name="PlayButton" Content="{local:T rec.play}" Click="Play_Click" Margin="8,0,0,0"/>
+                            <Button Content="{local:T rec.openfolder}" Click="OpenFolder_Click" Margin="8,0,0,0"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="SavedText" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Style="{StaticResource Caption}" FontSize="13"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

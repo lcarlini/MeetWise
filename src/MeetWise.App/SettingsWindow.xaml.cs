@@ -39,6 +39,7 @@ public partial class SettingsWindow : Window
         CtxBox.Text = settings.UserContext ?? "";
         GlossaryBox.Text = string.Join(Environment.NewLine, settings.Glossary);
         WebhookBox.Text = settings.WebhookUrl ?? "";
+        HideCheck.IsChecked = settings.HideWindowFromCapture;
         CalendarBox.Text = settings.CalendarUrl ?? "";
         DetectCheck.IsChecked = settings.AutoDetectMeetings;
         ProviderCombo_Changed(null, null!);
@@ -106,6 +107,7 @@ public partial class SettingsWindow : Window
         _settings.UserOccupation = OccBox.Text.Trim().Length == 0 ? null : OccBox.Text.Trim();
         _settings.UserContext = CtxBox.Text.Trim().Length == 0 ? null : CtxBox.Text.Trim();
         _settings.Glossary = GlossaryBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        _settings.HideWindowFromCapture = HideCheck.IsChecked == true;
         _settings.CalendarUrl = CalendarBox.Text.Trim().Length == 0 ? null : CalendarBox.Text.Trim();
         _settings.AutoDetectMeetings = DetectCheck.IsChecked == true;
         _settings.WebhookUrl = WebhookBox.Text.Trim().Length == 0 ? null : WebhookBox.Text.Trim();

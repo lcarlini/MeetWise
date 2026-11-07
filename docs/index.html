@@ -84,7 +84,7 @@
       <span class="badge">sherpa-onnx · Whisper · llama.cpp</span>
       <span class="badge">NVIDIA CUDA 13 (optional)</span>
       <span class="badge">SQLite + full-text search</span>
-      <span class="badge">80 automated tests</span>
+      <span class="badge">280+ automated tests</span>
     </div>
     <div class="cta">
       <a class="btn primary" href="#how">See how it works</a>
@@ -100,6 +100,8 @@
     <h2>One place for everything a meeting produces</h2>
     <p class="lead">Krisp-style audio clean-up, meeting intelligence and recording, combined in one app. Nothing leaves your machine unless you choose a cloud provider.</p>
     <div class="grid">
+      <div class="card"><div class="ico">🎞️</div><h3>Studio: record, subtitle, ask</h3><p>Record a monitor like RecBox while subtitles appear live in any language. When you stop, tick the lines you want and copy or save SRT, VTT or TXT. Then ask the AI to summarize, list action items, write chapters or translate.</p></div>
+      <div class="card"><div class="ico">📚</div><h3>Import and watch</h3><p>Import audio or video (track chosen by language, optional noise filter), paste a YouTube link, or let a watched folder subtitle everything you drop in it.</p></div>
       <div class="card"><div class="ico">🎙️</div><h3>Bot-free capture</h3><p>Records your microphone and the system audio as two separate channels, so no bot joins the call and "me" and "others" are kept apart.</p><span class="tag ok">Working</span></div>
       <div class="card"><div class="ico">📝</div><h3>Live transcript</h3><p>Streaming speech-to-text with partial results and timestamps, plus a Whisper "Refine" pass that runs on the GPU for higher accuracy in 99 languages.</p><span class="tag ok">Working</span></div>
       <div class="card"><div class="ico">🔇</div><h3>Noise, echo and voice isolation</h3><p>Three noise-suppression levels, adaptive echo cancellation, and a voice-isolation mode that keeps only the voice you enrolled.</p><span class="tag ok">Working</span></div>
@@ -107,7 +109,9 @@
       <div class="card"><div class="ico">🗓️</div><h3>Pre-meeting briefs</h3><p>Reads any iCal calendar, reminds you before meetings, offers to record when Zoom, Teams or Meet starts, and prepares a brief from earlier meetings in the same series.</p><span class="tag ok">Working</span></div>
       <div class="card"><div class="ico">🌍</div><h3>Live translation</h3><p>Shows other people's speech as captions in your language, and can speak your sentences translated into a chosen device.</p><span class="tag ok">Working</span></div>
       <div class="card"><div class="ico">🎬</div><h3>Audio + video</h3><p>Screen recording with NVENC, Quick Sync, AMD AMF or x264 (picked automatically), joined into one MP4 with both audio channels.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🔌</div><h3>Virtual microphone</h3><p>Meeting apps need a virtual audio device to receive the cleaned voice. Until the planned driver exists, install the free VB-CABLE.</p><span class="tag todo">Needs VB-CABLE</span></div>
+      <div class="card"><div class="ico">🔌</div><h3>MeetWise Microphone</h3><p>One click creates a real microphone in Windows Sound settings. Set it as your default and every app (Zoom, Teams, Meet, Discord) hears your cleaned voice. Powered by the signed VB-CABLE driver.</p><span class="tag ok">One click, one Windows prompt</span></div>
+      <div class="card"><div class="ico">🔐</div><h3>Voice lock</h3><p>Read six sentences and MeetWise learns your voice, then passes only you and removes other people. Measured: a second speaker is cut by 19 to 47 dB while your voice passes at the same level.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🗣️</div><h3>English coach</h3><p>While you speak English, a small floating window shows your sentence with the mistake struck through and the fix highlighted. Only you see it. On a test set it caught 15 of 15 mistakes with 0 false alarms.</p><span class="tag ok">Working</span></div>
     </div>
   </div>
 </section>
@@ -170,11 +174,31 @@
 <section id="screens">
   <div class="wrap">
     <div class="eyebrow">Screenshots</div>
-    <h2>The main window</h2>
-    <p class="lead">The main window shows your hardware, microphone and capture settings, the audio enhancement panel, search and the live transcript. The screenshot is from the development build on an RTX 4070 Laptop.</p>
+    <h2>The app</h2>
+    <p class="lead">The Studio has five pages: Record, Subtitles, AI Assistant, Library and Meetings. These are real screenshots from the development build on an RTX 4070 Laptop.</p>
     <figure>
-      <img src="img/main-window.png" alt="MeetWise main window showing hardware detection, microphone selection and the search bar" loading="lazy">
-      <figcaption>Main window. The button row is wider than the window at this size, so the right-hand buttons are clipped. This is a known issue, listed below.</figcaption>
+      <img src="img/studio-record.png" alt="Record page with monitor, microphone and quality choices, the record button and live subtitles" loading="lazy">
+      <figcaption>Record: pick the screen and quality, press Record (or Ctrl+Shift+R), and watch subtitles appear while you speak.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/studio-subtitles.png" alt="Subtitles page with selectable lines and copy and save buttons" loading="lazy">
+      <figcaption>Subtitles: tick the lines you want, copy them or save SRT, VTT or TXT.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/studio-assistant.png" alt="AI Assistant page with command buttons and a chapters reply" loading="lazy">
+      <figcaption>AI Assistant: one-click commands or free text, answered by a local model (here Qwen3-8B on the GPU).</figcaption>
+    </figure>
+    <figure>
+      <img src="img/studio-library.png" alt="Library page with recordings, imports, YouTube and watch folder" loading="lazy">
+      <figcaption>Library: search every transcript, import files or YouTube, watch a folder.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/studio-meetings.png" alt="Meetings page with MeetWise Microphone and meeting notes" loading="lazy">
+      <figcaption>Meetings: MeetWise Microphone, voice lock, English coach, notes and questions.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/voice-training.png" alt="Voice training window showing sentence 1 of 6 to read aloud" loading="lazy">
+      <figcaption>Voice training: six sentences, each checked for enough speech, no distortion, a quiet room, and that only you are speaking.</figcaption>
     </figure>
   </div>
 </section>
@@ -235,14 +259,13 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # build latest and launch</
     <div class="two">
       <div class="card">
         <h3>Not built</h3>
-        <p>A virtual microphone and speaker driver (needs the Windows Driver Kit and Microsoft signing); true accent conversion (no usable streaming model exists); screens for tags, folders and speaker renaming; a mobile app; phone-call recording; a meeting-bot option; the Inno Setup installer.</p>
+        <p>MeetWise's own virtual-audio driver (the MeetWise Microphone uses VB-Audio's signed VB-CABLE instead, because Windows with Secure Boot only loads signed drivers); cleaning the other participants' audio before it reaches your speakers; true accent conversion (no usable streaming model exists); screens for tags, folders and speaker renaming; a mobile app; phone-call recording; a meeting-bot option; the Inno Setup installer.</p>
       </div>
       <div class="card">
         <h3>Built, not tested end to end</h3>
-        <p>Hearing the cleaned microphone inside a real call; real room echo; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
+        <p>Installing the MeetWise Microphone and hearing it inside a real call (the installer needs a Windows administrator prompt and could not be run unattended); real room echo; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
       </div>
     </div>
-    <div class="note">Known issue: at some window sizes the top button row and the capture-mode controls are wider than the window, so some controls are clipped. The layout needs fixing before release.</div>
   </div>
 </section>
 

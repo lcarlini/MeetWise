@@ -1,0 +1,20 @@
+<Window x:Class="MeetWise.App.CoachOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MeetWise coach" Width="520" SizeToContent="Height" MinHeight="70" MaxHeight="520"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
+        MouseLeftButtonDown="Drag">
+    <Border CornerRadius="12" Background="#E6141B2E" BorderBrush="#FF3A4A78" BorderThickness="1" Padding="14,10">
+        <StackPanel>
+            <DockPanel LastChildFill="False">
+                <TextBlock x:Name="HeaderText" Foreground="#FF9AA6C7" FontSize="12" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                <Button Content="✕" DockPanel.Dock="Right" Width="22" Height="22" Padding="0" Background="Transparent" Foreground="#FF9AA6C7"
+                        BorderThickness="0" Click="Hide_Click" ToolTip="Hide (turn the coach off in the main window)"/>
+            </DockPanel>
+            <StackPanel x:Name="Cards" Margin="0,6,0,0"/>
+            <TextBlock x:Name="EmptyText" Foreground="#FFB7C0DC" FontSize="13" TextWrapping="Wrap"
+                       Text="Speak English and your corrections will appear here. Only you can see them."/>
+        </StackPanel>
+    </Border>
+</Window>

@@ -25,13 +25,9 @@ public sealed class AudioDeviceService
         {
             new() { Id = DefaultDeviceId, Name = "Default Windows microphone", IsDefault = true }
         };
-        try
-        {
-            using var e = new MMDeviceEnumerator();
-            foreach (var d in e.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
-                devices.Add(new AudioDeviceInfo { Id = d.ID, Name = d.FriendlyName });
-        }
-        catch { /* keep the Default entry when the audio subsystem is unavailable */ }
+        // The virtual MeetWise Microphone is an output of MeetWise, never a source for it (that would loop the sound back).
+        foreach (var d in VirtualMic.Endpoints(DataFlow.Capture, includeVirtual: false))
+            devices.Add(new AudioDeviceInfo { Id = d.Id, Name = d.Name });
         return devices;
     }
 
@@ -58,8 +54,16 @@ public sealed class AudioDeviceService
     public static MMDevice OpenRender(string id, MMDeviceEnumerator e)
         => e.GetDevice(id);
 
-    public static MMDevice OpenCapture(string id, MMDeviceEnumerator e)
-        => id == DefaultDeviceId || string.IsNullOrWhiteSpace(id)
-            ? e.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications)
-            : e.GetDevice(id);
+    /// <summary>
+    /// Opens a capture device. "default" is the Windows default microphone, except when that default is the virtual MeetWise Microphone itself:
+    /// then the remembered (or first) physical microphone is used, so the route can never record its own output.
+    /// </summary>
+    public static MMDevice OpenCapture(string id, MMDeviceEnumerator e, string? rememberedPhysicalId = null)
+    {
+        if (id != DefaultDeviceId && !string.IsNullOrWhiteSpace(id)) return e.GetDevice(id);
+        var def = e.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
+        if (!VirtualMic.IsVirtualAdapter(VirtualMic.AdapterOf(def))) return def;
+        var pick = VirtualMic.ChoosePhysicalMic(DefaultDeviceId, def.ID, VirtualMic.Endpoints(DataFlow.Capture), rememberedPhysicalId);
+        return pick is null ? throw new InvalidOperationException("No physical microphone is available.") : e.GetDevice(pick);
+    }
 }

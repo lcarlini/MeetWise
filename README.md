@@ -6,6 +6,20 @@ A local-first AI meeting assistant for Windows 11. It captures conversations wit
 
 Built for any machine, and fast on NVIDIA GPUs (developed on an RTX 4070 Laptop, 8 GB).
 
+## MeetWise Studio: record, subtitle, ask the AI
+
+One window, five pages. It brings in what used to be two separate tools: **RecBox** (screen recording) and **LanguageAwareSubtitleExtractor** (language-aware subtitles).
+
+| Page | What you do there |
+|---|---|
+| **Record** | Pick a monitor (native resolution), microphone, system audio, quality (Low file size / Balanced / Maximum) and mode (video + audio, audio only, transcript only). Start and stop with the big button or **Ctrl+Shift+R**. Subtitles appear **while you record**, in any language (English streams word by word; other languages are cut at pauses and transcribed with Whisper on the GPU; "Subtitles in English" translates). An optional floating caption overlay is excluded from the recording. MeetWise's own windows are kept out of the video. |
+| **Subtitles** | After you stop: tick the lines you want (all / none / invert / filter), edit them, then **Copy text**, **Copy as SRT**, or save **SRT / VTT / TXT** (selected or all). "Refine with Whisper" re-runs the whole recording for maximum accuracy. "Ask AI about selection" sends the selected lines to the assistant. |
+| **AI Assistant** | Chat about a recording (or only the lines you selected): Summarize, Key points, Action items, Chapters, Title and description, Follow-up email, Clean up text, Translate to a language, or any free-text command. Replies can be copied or saved. Local Qwen3 by default, API key optional. |
+| **Library** | Every recording, import and meeting, with full-text search across transcripts. Import audio/video files (language, audio-track choice by language, noise filter, `.txt` always plus optional `.srt`), import a **YouTube** link (captions first, local transcription as fallback), or **watch a folder** (`To Process` to `Output`, originals moved to `Processed`, failures to `Errors`). |
+| **Meetings** | The existing meeting tools: MeetWise Microphone, voice lock, English coach, notes, Ask, action items, calendar. |
+
+The interface speaks English, Portuguese and Spanish (switch at the bottom of the navigation rail). Screenshots are in `docs/img` and are produced by `tools/capture-screens.ps1` against demo data, so your own recordings never appear in them.
+
 ## What works today
 
 | Area | Feature | How |
@@ -19,7 +33,8 @@ Built for any machine, and fast on NVIDIA GPUs (developed on an RTX 4070 Laptop,
 | | Custom vocabulary with starter kits (software, sales, medical, legal) | Whisper prompt + near-miss correction of live text |
 | Audio enhancement | Noise suppression: Light, Balanced, Max | GTCRN (0.5 MB), DPDFNet 16 kHz, DPDFNet 48 kHz full-band |
 | | Echo cancellation | NLMS adaptive filter with double-talk protection |
-| | Voice isolation (keeps only you) | VoxLock target-speaker extraction with a 10 s enrollment |
+| | **MeetWise Microphone**: a real microphone in Windows Sound settings that every app can use, fed with your cleaned voice | One click installs VB-Audio's signed VB-CABLE (one Windows prompt) and names it "MeetWise Microphone"; the route heals itself on device changes and never records its own output |
+| | **Voice lock**: guided training on six sentences, then only your voice passes | Quality checks per sentence, VoxLock target-speaker extraction; measured 19-47 dB removal of a second speaker, own voice within 1 dB |
 | | Automatic downgrade if the CPU cannot keep up | `AudioRoute.Overloaded` switches Max to Balanced to Light |
 | Intelligence | Notes, key points, decisions, risks, action items with owners and dates | Local Qwen3 (8B on 8 GB GPUs, 4B otherwise), long meetings are chunked and merged |
 | | Templates: general, standup, client call, interview, sales, incident, 1:1 | Prompt templates, personalised with your role |
@@ -30,12 +45,13 @@ Built for any machine, and fast on NVIDIA GPUs (developed on an RTX 4070 Laptop,
 | | Reminders, "record this call?" prompt when Zoom/Teams/Meet use the mic, agenda and brief from earlier meetings of the same series | Windows microphone consent store, LLM |
 | Translation | Live captions of other people in your language | LLM translation |
 | | Speak your sentences translated, or re-voiced in a neutral accent, into a chosen output device | Windows offline voices |
+| English coach | Private on-screen corrections of your spoken English, floating over any meeting app, plus a speaking report (repeated mistakes, pace) | Punctuation restoration + local Qwen3-8B; on 15 sentences with real mistakes it caught 15 and raised 0 false alarms on 15 correct ones |
 | AI engine | Local by default. Optional Anthropic API key, or any OpenAI-compatible server (OpenAI, Ollama, LM Studio) | Keys are encrypted with Windows DPAPI, never in settings.json |
 
 ## What is not done (and why)
 
-- **Virtual microphone/speaker driver ("MeetWise Microphone")**. This is a kernel driver that needs the Windows Driver Kit, an EV code-signing certificate and Microsoft attestation signing; none are available in this environment. Until then, cleaned audio is sent to a **virtual cable you install** (the free VB-CABLE works) and you select the cable's other end as the microphone in your meeting app. The app detects whether one is present and tells you what to do. See `driver/README.md`.
-- **Cleaning the other participants' audio.** The same virtual-device requirement applies (their audio has to be routed through MeetWise before it reaches your speakers).
+- **MeetWise's own virtual-audio driver.** The MeetWise Microphone is created with VB-Audio's signed VB-CABLE, because a virtual device is a kernel driver and Windows with Secure Boot only loads signed drivers. A driver of our own would need the Windows Driver Kit, an EV code-signing certificate and Microsoft attestation signing (see `driver/README.md`). VB-CABLE is donationware and its licence does not allow bundling it in another installer, so MeetWise downloads the unmodified pack from vb-audio.com when you click the button, and credits VB-Audio in the app.
+- **Cleaning the other participants' audio** before it reaches your speakers (it needs the virtual speaker side routed through MeetWise; only your microphone is cleaned today).
 - **True accent conversion** (changing how a voice sounds while preserving the voice itself in real time). There is no usable streaming model for this. The nearest thing available is the "re-voice" mode (transcribe, then speak with a Windows voice), which has about a second of delay and does not keep your own voice.
 - **Speech translation quality equal to NLLB/Seamless.** Translation uses the configured LLM; with the 8B local model it is good for common languages and weaker for rare ones.
 - **Windows voices** for spoken translation only exist for the languages installed in Windows (Settings, Time and language, Speech).
@@ -44,9 +60,17 @@ Built for any machine, and fast on NVIDIA GPUs (developed on an RTX 4070 Laptop,
 
 ## How much of this is verified
 
-Tested automatically against real models and real devices on Windows 11 with an RTX 4070 Laptop: streaming and Whisper transcription (CPU and GPU), noise suppression and voice isolation (noise reduction in dB, speech still recognised), echo cancellation (ERLE), diarization and speaker identification, local LLM on the GPU, notes/Ask/briefs/translation prompts (with a scripted LLM), calendar parsing, FFmpeg recording of the real screen with NVENC and MP4 muxing, crash recovery, download resume, device recording, and a self-test of the published build.
+Tested automatically (286 tests, all passing on the development machine) against real models and real devices on Windows 11 with an RTX 4070 Laptop: streaming and Whisper transcription (CPU and GPU), noise suppression and voice isolation (noise reduction in dB, speech still recognised), echo cancellation (ERLE), diarization and speaker identification, local LLM on the GPU, notes/Ask/briefs/translation prompts (with a scripted LLM), calendar parsing, FFmpeg recording of the real screen with NVENC and MP4 muxing, crash recovery, download resume, device recording, and a self-test of the published build. Studio-specific checks: subtitle formatting (SRT/VTT round trips, YouTube rolling-caption clean-up), live subtitles on real speech in English and Mandarin (auto-detect and translate to English), audio-track selection and chunk offsets on generated multi-track files, the watch-folder flow, a real 5 s screen recording that yields an MP4 with matching `.srt`/`.txt`, the AI assistant against a scripted model plus a real Qwen3-8B smoke test, the schema upgrade, and that every UI string exists in English, Portuguese and Spanish. The UI was launched and every page was captured and inspected.
 
-Implemented but **not** exercised end to end, because they need hardware or accounts this environment lacks: playing the cleaned microphone into a virtual cable and hearing it in a call, real room echo, the automatic downgrade under real CPU overload, spoken translation into a virtual microphone, the Anthropic/OpenAI network calls (tested against a stub server only), and live calendar feeds.
+Also verified on the real machine: the voice-lock measurements, the coach evaluation (15/15 and 0/15 above), the self-healing route (restart, backoff, device-change debouncing), the Windows default-microphone switch (set to itself and restored), the VB-CABLE pack download with its pinned SHA-256, and the database upgrade of an existing version-1 file.
+
+Implemented but **not** exercised end to end, because the YouTube download needs the network and a JavaScript runtime (Deno or Node), so only parsing, argument building and hash checking are tested offline; the Studio window was not driven through a full record-and-stop by UI automation (the same engine is tested directly); and they need hardware or accounts this environment lacks: running the VB-CABLE installer itself (it needs a Windows administrator prompt, so it was not run unattended), renaming the new endpoints to "MeetWise Microphone" (the same property-store call was only read-tested; it is never written by tests), hearing the cleaned microphone in a real call, real room echo, the automatic downgrade under real CPU overload, spoken translation into a virtual microphone, the Anthropic/OpenAI network calls (tested against a stub server only), and live calendar feeds.
+
+## Design notes
+
+- **Why voice lock is VoxLock and not a voiceprint gate.** A voiceprint (CAM++) needs about 3 s of speech: on 1 to 1.5 s windows, same-speaker scores (0.29-0.60) overlap different-speaker scores (0.15-0.59), so a real-time identity gate would cut off the first words of the user. VoxLock extracts the enrolled voice directly and was measured instead. A loudness gate on top of it removed nothing (leaked sound and quiet word endings sit within about 17 dB of each other), so it was dropped.
+- **Why the coach ignores capitalisation and recognition errors.** Its input is speech-recognition text, so the prompt tells the model to report only real grammar and word-choice mistakes, and an "unchanged" correction is discarded.
+- **Safety nets for a system-wide microphone.** The route never uses the virtual mic as its own input; the app warns before closing while the MeetWise Microphone is the Windows default (apps would hear silence) and offers to restore your previous microphone.
 
 ## Hardware tiers
 
@@ -74,7 +98,7 @@ dotnet test tests/MeetWise.Tests -c Release
 dotnet run --project src/MeetWise.App -c Release
 ```
 
-Models download on first use (resumable, SHA-256 verified) into `%LocalAppData%\MeetWise`. Settings and voices live in `%AppData%\MeetWise`.
+Models download on first use (resumable, SHA-256 verified) into `%LocalAppData%\MeetWise`. Settings and voices live in `%AppData%\MeetWise`. Set `MEETWISE_DATA` to use a different data folder (used for the demo screenshots).
 
 Self-test (also works on a published build, writes a report and returns 0 when all required parts load):
 
@@ -96,8 +120,8 @@ src/MeetWise.Audio         devices, recorders, enhancement route, video, Windows
 src/MeetWise.Speech        streaming ASR, Whisper, enhancement, echo canceller, diarization, speaker profiles
 src/MeetWise.Intelligence  LLM providers, notes, Ask, calendar, briefs, translation, secrets
 src/MeetWise.Storage       SQLite + full-text search
-src/MeetWise.App           WPF shell
-tests/MeetWise.Tests       about 80 tests, most run against real models and the real audio/video devices
+src/MeetWise.App           WPF Studio shell and pages (Record, Subtitles, AI Assistant, Library, Meetings)
+tests/MeetWise.Tests       about 290 tests, most run against real models and the real audio/video devices
 ```
 
 ## Privacy

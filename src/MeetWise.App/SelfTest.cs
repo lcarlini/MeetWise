@@ -4,6 +4,8 @@ using MeetWise.Core;
 using MeetWise.Core.Hardware;
 using MeetWise.Core.Models;
 using MeetWise.Intelligence;
+using MeetWise.Speech;
+using System.Net.Http;
 using MeetWise.Storage;
 
 namespace MeetWise.App;
@@ -69,6 +71,26 @@ public static class SelfTest
         });
         Check("Windows speech voices", () => $"{WindowsVoice.InstalledLanguages.Count} language(s): {string.Join(", ", WindowsVoice.InstalledLanguages.Take(8))}", required: false);
         Check("FFmpeg", () => FFmpegPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first video recording)"), required: false);
+        Check("Monitors", () => string.Join("; ", new MonitorService().GetMonitors().Select(m => m.ToString())), required: false);
+        Check("yt-dlp (YouTube import)", () => YtDlpPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first YouTube import)"), required: false);
+        Check("MeetWise Microphone (virtual cable)", () =>
+        {
+            var mic = VirtualMic.FindMic();
+            var feed = VirtualMic.FindFeed();
+            if (mic is null || feed is null) throw new InvalidOperationException("not installed: use \"Create MeetWise Microphone\" in the app");
+            var desc = EndpointProperties.ReadDescription(mic.Id);
+            var isDefault = DefaultMicrophone.Current().Communications == mic.Id;
+            return $"\"{mic.Name}\" (named {desc}) and \"{feed.Name}\"; Windows default: {(isDefault ? "yes" : "no")}";
+        }, required: false);
+        Check("Voice profile", () => VoiceProfile.IsTrained()
+            ? $"trained ({VoiceProfile.Load()?.Sentences} sentences)"
+            : throw new InvalidOperationException("not trained yet: use \"Train my voice\" in the app"), required: false);
+        Check("English coach models", () =>
+        {
+            var m = new ModelManager(new HttpClient());
+            return m.IsInstalled(ModelCatalog.PunctuationEnglish) && m.IsInstalled(ModelCatalog.SileroVad) ? "punctuation and voice-activity models present"
+                : throw new FileNotFoundException("downloaded on first use");
+        }, required: false);
         Check("Virtual audio device", () =>
         {
             var v = new AudioDeviceService().GetRenderDevices().Where(d => AudioDeviceService.LooksVirtual(d.Name)).Select(d => d.Name).ToList();

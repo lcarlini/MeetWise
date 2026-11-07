@@ -50,6 +50,8 @@
             <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,8"
                        Text="Translation uses the AI engine selected above. Spoken output uses the offline Windows voices installed for that language (Settings, Time and language, Speech). Choose the virtual microphone as the device so meeting apps hear it."/>
 
+            <CheckBox x:Name="HideCheck" Content="Keep MeetWise windows out of screen recordings (restart to apply)" Margin="0,12,0,0"/>
+
             <TextBlock Text="Calendar" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4"/>
             <TextBlock TextWrapping="Wrap" Opacity="0.7" Text="Paste your calendar's iCal feed address (Google Calendar: Settings, Integrate calendar, Secret address in iCal format; Outlook: published calendar ICS link)."/>
             <TextBox x:Name="CalendarBox" Margin="0,4,0,4"/>

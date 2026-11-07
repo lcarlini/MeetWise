@@ -1,0 +1,11 @@
+<Window x:Class="MeetWise.App.CaptionOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MeetWise captions" Width="980" SizeToContent="Height" MinHeight="60"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
+        MouseLeftButtonDown="Drag">
+    <Border CornerRadius="10" Background="#CC000000" Padding="22,12">
+        <TextBlock x:Name="CaptionText" Foreground="White" FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"/>
+    </Border>
+</Window>

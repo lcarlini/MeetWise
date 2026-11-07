@@ -1,6 +1,7 @@
 namespace MeetWise.Core.Settings;
 
 public enum CapturePreset { TranscriptOnly, AudioOnly, AudioVideo }
+public enum QualityPreset { LowFileSize, Balanced, MaximumQuality }
 public enum NoiseMode { Off, Light, Balanced, Max }
 public enum HardwareTier { A_NvidiaRtx, B_AnyGpu, C_CpuOnly }
 
@@ -39,6 +40,47 @@ public sealed class AppSettings
     /// <summary>Speak my own speech, translated to this language ("same" = re-voice in a neutral accent), into SpeakDeviceId (null = off).</summary>
     public string? SpeakTranslationTo { get; set; }
     public string? SpeakDeviceId { get; set; }
+
+    /// <summary>The physical microphone to clean. Never the virtual MeetWise Microphone (that would create a feedback loop).</summary>
+    public string? PhysicalMicId { get; set; }
+
+    /// <summary>Keep the physical mic routed into the MeetWise Microphone whenever the app runs.</summary>
+    public bool AlwaysOnMicrophone { get; set; }
+
+    public bool StartWithWindows { get; set; }
+
+    /// <summary>The Windows default microphones from before MeetWise Microphone was made the default, so they can be restored.</summary>
+    public string? PreviousDefaultConsole { get; set; }
+    public string? PreviousDefaultMultimedia { get; set; }
+    public string? PreviousDefaultCommunications { get; set; }
+
+    /// <summary>English speaking coach: private corrections on screen.</summary>
+    public bool CoachEnabled { get; set; }
+    public bool CoachOverlay { get; set; } = true;
+
+    // ---- Studio (recording, subtitles, imports) ----
+
+    /// <summary>GDI name of the monitor to record (for example \.\DISPLAY1); the primary one when empty or unplugged.</summary>
+    public string MonitorDeviceName { get; set; } = "";
+    public QualityPreset Quality { get; set; } = QualityPreset.Balanced;
+    public bool RecordMicrophone { get; set; } = true;
+    public bool RecordSystemAudio { get; set; } = true;
+
+    /// <summary>Language of the subtitles: "auto" or an ISO code (the 20 languages of the subtitle extractor).</summary>
+    public string SubtitleLanguage { get; set; } = "auto";
+    public bool SubtitlesInEnglish { get; set; }
+    public bool SaveSrt { get; set; } = true;
+    public bool FloatingCaptions { get; set; }
+
+    /// <summary>Interface language of the Studio pages: en, pt or es.</summary>
+    public string UiLanguage { get; set; } = "en";
+
+    /// <summary>Keep MeetWise's own windows out of screen recordings (like RecBox). Switch off to record MeetWise itself.</summary>
+    public bool HideWindowFromCapture { get; set; } = true;
+
+    public bool ImportNoiseFilter { get; set; }
+    public bool WatchFolderEnabled { get; set; }
+    public string WatchFolder { get; set; } = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "MeetWise", "To Process");
 
     public string TemplateId { get; set; } = "general";
     public string? UserNickname { get; set; }
