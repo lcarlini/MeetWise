@@ -88,7 +88,7 @@
       <span class="badge">sherpa-onnx · Whisper · llama.cpp</span>
       <span class="badge">NVIDIA CUDA 13 (optional)</span>
       <span class="badge">SQLite + full-text search</span>
-      <span class="badge">280+ automated tests</span>
+      <span class="badge">470+ automated tests</span>
     </div>
     <div class="cta">
       <a class="btn primary" href="#how">See how it works</a>
@@ -172,6 +172,44 @@
       <div class="step"><h3>Transcribe</h3><p>Streaming recognisers, one per channel, run on worker threads so audio capture is never blocked.</p></div>
       <div class="step"><h3>Refine & analyse</h3><p>Whisper re-transcribes each channel, the speakers are labelled, and the local LLM writes notes and action items.</p></div>
     </div>
+  </div>
+</section>
+
+<section id="audio-translation">
+  <div class="wrap">
+    <div class="eyebrow">Echo and translation</div>
+    <h2>Two things that must never get in the way of a call</h2>
+    <p class="lead">Both run beside the microphone and the transcript, never inside them: an echo canceller that follows the real delay of your speakers, and live translation that sheds load instead of falling behind. Both are covered by automated tests (about 190 of them), including the real local model and the real Windows voice.</p>
+
+    <div class="two">
+      <div class="card">
+        <h3>Echo cancellation</h3>
+        <p>The speaker feed is lined up with the microphone by measuring the delay (20 to 400 ms is normal), an adaptive filter subtracts the echo, and what is left is lowered only when it is no louder than the echo itself. Nothing adapts without evidence of an echo, so headphones leave your voice alone. It stays out of the way: a muted microphone stays silent, a failed loopback restarts by itself, and it adds no latency.</p>
+        <table>
+          <tr><th>Reference ahead of the microphone</th><th>0 to 400 ms</th></tr>
+          <tr><td>Echo removed (before: 8.0 dB at 100 ms, 1.3 dB at 400 ms)</td><td>36 to 38 dB</td></tr>
+          <tr><td>After you move the speaker</td><td>43.7 dB (before: 4.0 dB)</td></tr>
+          <tr><td>Your voice while the other side talks</td><td>level kept within 0.1 dB</td></tr>
+          <tr><td>Cost of a 10 ms block (16 / 48 kHz)</td><td>0.6 to 2 % / about 5 % of real time</td></tr>
+        </table>
+        <p><span class="tag ok">synthetic signals, real recorded speech</span> <span class="tag todo">real rooms and Bluetooth speakers not tested</span></p>
+      </div>
+      <div class="card">
+        <h3>Live translation</h3>
+        <p>Captions of what other people say in your language, and your own sentences translated and spoken into a virtual microphone. Fragments become sentences; one worker per direction keeps the order; if the model falls behind, old sentences are skipped and you are told. If a translation fails you still see what was said, with the reason. It checks that numbers, questions and the days of the week survived (the local model once turned Friday into Thursday), and it will not hear its own translated voice and translate it again.</p>
+        <table>
+          <tr><th>Local Qwen3-8B, RTX 4070 Laptop</th><th></th></tr>
+          <tr><td>One sentence (en, pt, es, all directions)</td><td>0.6 s median</td></tr>
+          <tr><td>Speech end to caption on screen</td><td>0.49 s median, 1.06 s at the 95th percentile</td></tr>
+          <tr><td>Speech end to translated audio ready</td><td>0.41 s median</td></tr>
+          <tr><td>Time the audio and the UI wait for the model</td><td>none</td></tr>
+        </table>
+        <p><span class="tag ok">local by default</span> <span class="tag ok">cloud only if you choose it</span> <span class="tag todo">Windows voices only for installed languages</span></p>
+      </div>
+    </div>
+    <p style="margin-top:22px"><a class="btn" href="https://github.com/lcarlini/MeetWise#echo-cancellation">How echo cancellation works</a>
+       <a class="btn" href="https://github.com/lcarlini/MeetWise#live-translation">How live translation works</a>
+       <a class="btn" href="https://github.com/lcarlini/MeetWise/blob/main/docs/AUDIT-echo-and-translation.md">The audit: what was found and fixed</a></p>
   </div>
 </section>
 
@@ -267,7 +305,7 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # build latest and launch</
       </div>
       <div class="card">
         <h3>Built, not tested end to end</h3>
-        <p>Installing the MeetWise Microphone and hearing it inside a real call (the installer needs a Windows administrator prompt and could not be run unattended); real room echo; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
+        <p>Installing the MeetWise Microphone and hearing it inside a real call (the installer needs a Windows administrator prompt and could not be run unattended); real room echo and Bluetooth speakers (echo cancellation was tested on synthetic signals and real recorded speech); a live Zoom, Teams or Meet call; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
       </div>
     </div>
   </div>
