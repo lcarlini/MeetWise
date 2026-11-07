@@ -16,7 +16,7 @@ namespace MeetWise.App;
 /// <summary>Record a screen (like RecBox) while subtitles appear live; stopping saves the video, the audio and the subtitles.</summary>
 public partial class RecordPage : UserControl
 {
-    private sealed record Choice<T>(T Value, string Text);
+    private sealed record Choice<T>(T Value, string Text) { public override string ToString() => Text; }
 
     private readonly StudioContext _ctx;
     private readonly ObservableCollection<SubtitleRow> _rows = new();
@@ -156,7 +156,7 @@ public partial class RecordPage : UserControl
         catch (Exception ex)
         {
             AppLog.Error("Recording action failed", ex);
-            StatusText.Text = ex.Message;
+            StatusText.Text = MeetWise.Audio.AudioErrors.Describe(ex);
             SetVisual(_ctx.Session.IsRecording);
         }
         finally { _busy = false; RecordButton.IsEnabled = true; }

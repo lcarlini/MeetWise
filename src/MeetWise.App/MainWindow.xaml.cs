@@ -23,7 +23,7 @@ namespace MeetWise.App;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private sealed record Choice(string Value, string Text);
+    private sealed record Choice(string Value, string Text) { public override string ToString() => Text; }
 
     private readonly StudioContext _ctx;
     private readonly RecordPage _record;

@@ -47,7 +47,7 @@ public sealed class JobRow : INotifyPropertyChanged
 /// <summary>Everything recorded or imported, search across all transcripts, and the ways to bring media in: files, YouTube links, a watched folder.</summary>
 public partial class LibraryPage : UserControl
 {
-    private sealed record Choice(string Value, string Text);
+    private sealed record Choice(string Value, string Text) { public override string ToString() => Text; }
 
     private readonly StudioContext _ctx;
     private readonly ObservableCollection<LibraryRow> _rows = new();

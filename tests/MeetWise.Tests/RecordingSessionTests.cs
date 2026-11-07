@@ -54,6 +54,28 @@ public class RecordingSessionTests
     }
 
     [Fact]
+    public async Task Start_GivesUpWithAMessage_WhenTheAudioDeviceNeverAnswers_AndNeverBlocksTheCaller()
+    {
+        var (session, _, dir) = New();
+        using var _ = session;
+        var release = new ManualResetEventSlim();
+        session.AudioStartTimeout = TimeSpan.FromMilliseconds(600);
+        session.OpenAudio = (rec, o, name) => release.Wait(TimeSpan.FromSeconds(30)); // a wedged driver
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        var ex = await Assert.ThrowsAsync<TimeoutException>(() => session.StartAsync(Options(dir)));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(20), $"took {started.Elapsed.TotalSeconds:0.0} s");
+        Assert.Contains("did not start", ex.Message);
+        Assert.False(session.IsRecording);
+        release.Set(); // the abandoned call returns later: it must not throw into the process
+        await Task.Delay(300);
+
+        // and the session is reusable afterwards
+        session.OpenAudio = (rec, o, name) => throw new InvalidOperationException("no device");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.StartAsync(Options(dir)));
+        Assert.False(session.IsRecording);
+    }
+
+    [Fact]
     public async Task Start_RefusesWithoutAnyAudioSource_AndOnAFullDisk()
     {
         var (session, _, dir) = New();

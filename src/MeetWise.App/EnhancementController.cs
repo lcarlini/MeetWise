@@ -48,9 +48,10 @@ public sealed class EnhancementController : IDisposable
         _mode = s.NoiseCancellation;
         _options = await BuildOptionsAsync(progress);
 
-        _route = new ResilientRoute(CreateRoute);
-        _route.StatusChanged += st => StatusChanged?.Invoke(st);
-        _route.Start();
+        var route = new ResilientRoute(CreateRoute);
+        route.StatusChanged += st => StatusChanged?.Invoke(st);
+        _route = route;
+        await Task.Run(route.Start); // opening WASAPI devices can block for seconds when a driver is slow: never on the UI thread
         _watcher = new DeviceWatcher(() => _route?.DevicesChanged());
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }

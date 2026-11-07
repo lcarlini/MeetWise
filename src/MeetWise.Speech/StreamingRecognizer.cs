@@ -38,7 +38,7 @@ public sealed class StreamingRecognizer : IDisposable
         cfg.EnableEndpoint = 1;
         cfg.Rule1MinTrailingSilence = 2.4f;
         cfg.Rule2MinTrailingSilence = 0.8f;
-        cfg.Rule3MinUtteranceLength = 20f;
+        cfg.Rule3MinUtteranceLength = 12f; // a live subtitle never grows past about 12 s of continuous speech (it was 20 s: one unreadable paragraph)
         _rec = new OnlineRecognizer(cfg);
         _stream = _rec.CreateStream();
     }

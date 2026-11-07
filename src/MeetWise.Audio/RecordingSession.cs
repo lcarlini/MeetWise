@@ -47,6 +47,13 @@ public sealed class RecordingSession : IDisposable
     public Func<string, long> FreeBytes { get; set; } = CaptureGuards.FreeBytes;
     public TimeSpan WatchdogInterval { get; set; } = TimeSpan.FromSeconds(5);
 
+    /// <summary>How long opening the audio devices may take before the recording is abandoned with a message.</summary>
+    public TimeSpan AudioStartTimeout { get; set; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>Opens the capture devices; replaceable for tests (a device that never answers).</summary>
+    internal Action<DualChannelRecorder, RecordingOptions, string> OpenAudio { get; set; } =
+        (rec, o, baseName) => rec.Start(o.OutputFolder, baseName, o.MicrophoneId, o.Microphone, o.SystemAudio);
+
     /// <summary>Applied to every finished subtitle (the custom vocabulary corrector).</summary>
     public Func<string, string>? TextFilter { get; set; }
 
@@ -135,14 +142,23 @@ public sealed class RecordingSession : IDisposable
             _video.Start(_mkv, encoders[0], monitor: options.Monitor, quality: options.Quality);
         }
 
-        // 4. audio
-        _recorder = new DualChannelRecorder();
+        // 4. audio. Opening a WASAPI device can block for a long time (or for ever) when a driver is busy or wedged, so it runs off the UI thread
+        // with a time limit: the window stays alive and the user gets a clear message instead of a frozen app.
+        var recorder = _recorder = new DualChannelRecorder();
+        var opening = Task.Run(() => OpenAudio(recorder, options, _baseName!));
         try
         {
-            _recorder.Start(options.OutputFolder, _baseName, options.MicrophoneId, options.Microphone, options.SystemAudio);
+            if (await Task.WhenAny(opening, Task.Delay(AudioStartTimeout, ct)) != opening)
+            {
+                // abandon the stuck call; if it ever returns, release the device it grabbed
+                _ = opening.ContinueWith(_ => { try { recorder.Dispose(); } catch { } }, TaskScheduler.Default);
+                throw new TimeoutException(Loc($"The audio device did not start within {AudioStartTimeout.TotalSeconds:0} seconds. It may be busy or not responding: close other apps that use it, unplug and plug it in again, or choose another microphone."));
+            }
+            await opening;
         }
         catch
         {
+            _recorder = null;
             _video?.Dispose(); // never leave a screen recording running when the audio device failed
             _video = null;
             _subtitler.Dispose();
