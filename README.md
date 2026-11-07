@@ -142,7 +142,7 @@ providers were tested against a stub server, not the real services.
 
 ## How much of this is verified
 
-Tested automatically (473 tests, all passing on the development machine) against real models and real devices on Windows 11 with an RTX 4070 Laptop: streaming and Whisper transcription (CPU and GPU), noise suppression and voice isolation (noise reduction in dB, speech still recognised), echo cancellation (ERLE), diarization and speaker identification, local LLM on the GPU, notes/Ask/briefs/translation prompts (with a scripted LLM), calendar parsing, FFmpeg recording of the real screen with NVENC and MP4 muxing, crash recovery, download resume, device recording, and a self-test of the published build. Studio-specific checks: subtitle formatting (SRT/VTT round trips, YouTube rolling-caption clean-up), live subtitles on real speech in English and Mandarin (auto-detect and translate to English), audio-track selection and chunk offsets on generated multi-track files, the watch-folder flow, a real 5 s screen recording that yields an MP4 with matching `.srt`/`.txt`, the AI assistant against a scripted model plus a real Qwen3-8B smoke test, the schema upgrade, and that every UI string exists in English, Portuguese and Spanish. Echo cancellation and live translation have their own suites (about 190 tests): delay robustness 0-400 ms, double talk, noise types, muted microphone, path changes, sample rates, device-change handling of the reference, the translator's prompt, cleaning, timeouts, retries, rate limits, fallback and privacy, the service's segmentation, language tracking, concurrency, load shedding, failures, speech routing and feedback protection, and the real local model and Windows voice. The UI was launched and every page was captured and inspected.
+Tested automatically (474 tests, all passing on the development machine) against real models and real devices on Windows 11 with an RTX 4070 Laptop: streaming and Whisper transcription (CPU and GPU), noise suppression and voice isolation (noise reduction in dB, speech still recognised), echo cancellation (ERLE), diarization and speaker identification, local LLM on the GPU, notes/Ask/briefs/translation prompts (with a scripted LLM), calendar parsing, FFmpeg recording of the real screen with NVENC and MP4 muxing, crash recovery, download resume, device recording, and a self-test of the published build. Studio-specific checks: subtitle formatting (SRT/VTT round trips, YouTube rolling-caption clean-up), live subtitles on real speech in English and Mandarin (auto-detect and translate to English), audio-track selection and chunk offsets on generated multi-track files, the watch-folder flow, a real 5 s screen recording that yields an MP4 with matching `.srt`/`.txt`, the AI assistant against a scripted model plus a real Qwen3-8B smoke test, the schema upgrade, and that every UI string exists in English, Portuguese and Spanish. Echo cancellation and live translation have their own suites (about 190 tests): delay robustness 0-400 ms, double talk, noise types, muted microphone, path changes, sample rates, device-change handling of the reference, the translator's prompt, cleaning, timeouts, retries, rate limits, fallback and privacy, the service's segmentation, language tracking, concurrency, load shedding, failures, speech routing and feedback protection, and the real local model and Windows voice. The UI was launched and every page was captured and inspected.
 
 Also verified on the real machine: the voice-lock measurements, the coach evaluation (15/15 and 0/15 above), the self-healing route (restart, backoff, device-change debouncing), the Windows default-microphone switch (set to itself and restored), the VB-CABLE pack download with its pinned SHA-256, and the database upgrade of an existing version-1 file.
 
@@ -186,6 +186,8 @@ Self-test (also works on a published build, writes a report and returns 0 when a
 
 ```
 MeetWise.App.exe --selftest report.txt
+
+The self-test also runs a device-free echo check (a synthetic echo must be cancelled and its delay found).
 ```
 
 Package:
@@ -203,7 +205,7 @@ src/MeetWise.Speech        streaming ASR, Whisper, enhancement, echo canceller a
 src/MeetWise.Intelligence  LLM providers, notes, Ask, calendar, briefs, translator and live-translation service, secrets
 src/MeetWise.Storage       SQLite + full-text search
 src/MeetWise.App           WPF Studio shell and pages (Record, Subtitles, AI Assistant, Library, Meetings)
-tests/MeetWise.Tests       about 470 tests, most run against real models and the real audio/video devices
+tests/MeetWise.Tests       474 tests, most run against real models and the real audio/video devices
 ```
 
 ## Privacy
