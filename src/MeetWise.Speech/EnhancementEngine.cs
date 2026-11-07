@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace MeetWise.Speech;
 
 public sealed record EnhancementOptions(EnhancerKind? Kind, string? ModelPath, bool EchoCancellation,
-    string? VoiceModelDir = null, string? VoiceSampleWav = null, int Threads = 1);
+    string? VoiceModelDir = null, string? VoiceSampleWav = null, int Threads = 1, EchoOptions? Echo = null);
 
 /// <summary>
 /// Mic-side processing chain: echo cancellation, then noise suppression or voice isolation, then a soft limiter.
@@ -44,7 +44,7 @@ public sealed class EnhancementEngine : IDisposable
             OutputSampleRate = inputRate;
         }
         // the delay search runs on a pool thread: the audio callback only copies samples into a ring
-        if (options.EchoCancellation) _aec = new EchoCanceller(inputRate, options: new EchoOptions(BackgroundEstimation: true));
+        if (options.EchoCancellation) _aec = new EchoCanceller(inputRate, options: options.Echo ?? new EchoOptions(BackgroundEstimation: true));
     }
 
     /// <param name="mic">Mono microphone block at the input rate.</param>

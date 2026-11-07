@@ -345,7 +345,7 @@ public class EchoAdvancedTests
         for (int i = Rate * 25; i < far.Length; i++) near[i] = b[(i - Rate * 25) % b.Length] * 0.7f;
         var mic = EchoSim.Mix(echo, near);
 
-        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true));
+        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true, Echo: new EchoOptions()));
         var outp = new float[mic.Length];
         for (int i = 0; i + 160 <= mic.Length; i += 160)
             engine.Process(mic.AsSpan(i, 160).ToArray(), far.AsSpan(i, 160).ToArray()).CopyTo(outp, i);
@@ -368,7 +368,7 @@ public class EchoAdvancedTests
         var (h, d) = EchoSim.Path(Rate, 100);
         var echo = EchoSim.Convolve(far, h, d);
         var farCopy = (float[])far.Clone();
-        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true));
+        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true, Echo: new EchoOptions()));
         var outp = new float[echo.Length];
         for (int i = 0; i + 160 <= echo.Length; i += 160)
             engine.Process(echo.AsSpan(i, 160).ToArray(), far.AsSpan(i, 160).ToArray()).CopyTo(outp, i);
@@ -380,7 +380,7 @@ public class EchoAdvancedTests
     public void Engine_ReferenceBlockPassedByTheCaller_IsLeftUntouched()
     {
         // noise suppression and voice isolation run on the microphone only; the reference array the caller passes in must come back unchanged
-        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true));
+        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(null, null, EchoCancellation: true, Echo: new EchoOptions()));
         var far = EchoSim.Speech(Rate, 1, 52);
         var keep = (float[])far.AsSpan(0, 160).ToArray().Clone();
         var farBlock = far.AsSpan(0, 160).ToArray();
@@ -415,7 +415,7 @@ public class EchoAdvancedTests
         var echo = EchoSim.Convolve(far, h, d);
         var noise = EchoSim.StationaryNoise(Rate, 14, 57, 0.05f);
         var mic = EchoSim.Mix(echo, noise);
-        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(EnhancerKind.Light, model, EchoCancellation: true));
+        using var engine = new EnhancementEngine(Rate, new EnhancementOptions(EnhancerKind.Light, model, EchoCancellation: true, Echo: new EchoOptions()));
         var outp = new List<float>();
         for (int i = 0; i + 160 <= mic.Length; i += 160) outp.AddRange(engine.Process(mic.AsSpan(i, 160).ToArray(), far.AsSpan(i, 160).ToArray()));
         var o = outp.ToArray();

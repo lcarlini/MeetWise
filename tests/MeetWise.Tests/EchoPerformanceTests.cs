@@ -33,7 +33,9 @@ public class EchoPerformanceTests
             long t0 = Stopwatch.GetTimestamp();
             aec.Process(mic.AsSpan(i, block), far.AsSpan(i, block), o);
             times.Add((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency);
+            while (aec.DelaySearchRunning) Thread.Yield(); // audio is fed faster than real time: let each search finish, outside the timed part, as real hops would
         }
+        Assert.True(aec.Stats.DelayLocked, "the filter must be trained for the timing to mean anything");
         times.Sort();
         double mean = times.Average(), p99 = times[(int)(times.Count * 0.99)], max = times[^1];
         _out.WriteLine($"{rate} Hz, 10 ms blocks: mean {mean:0.000} ms (RTF {mean / 10:0.000}), p99 {p99:0.000} ms, worst {max:0.000} ms");

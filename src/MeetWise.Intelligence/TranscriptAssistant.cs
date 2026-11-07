@@ -24,7 +24,7 @@ public sealed class TranscriptAssistant
     {
         AssistantCommand.Summarize => "Summarize this recording: a short paragraph, then the main points as bullets.",
         AssistantCommand.KeyPoints => "List the key points as concise bullets, most important first.",
-        AssistantCommand.ActionItems => "List every action item, one per line as \"- [owner] task (due date)\". The owner is the PERSON NAMED as responsible in the sentence (for example \"Ana will update the manifests\" means the owner is Ana), not merely the speaker; if a speaker says \"I will\" use that speaker's label; if nobody is identified write \"unassigned\". Add the due date only when one was stated. Only include what was actually said.",
+        AssistantCommand.ActionItems => "List every action item, one per line as \"- [owner] task (due date)\". The owner is the PERSON NAMED as responsible in the sentence (for example \"Ana will update the manifests\" means the owner is Ana), so write \"- [Ana] Update the manifests\" even though another speaker said it; only if a speaker says \"I will\" use that speaker's label; if nobody is identified write \"unassigned\". Add the due date only when one was stated. Only include what was actually said.",
         AssistantCommand.Chapters => "Split the recording into chapters. For each chapter give the start timestamp (hh:mm:ss, taken from the transcript) and a short title, one per line.",
         AssistantCommand.TitleAndDescription => "Write a clear title (under 70 characters) and a two-sentence description for this recording.",
         AssistantCommand.FollowUpEmail => "Write a short, friendly follow-up email to the participants: thanks, a recap of decisions, the action items with owners, and next steps.",

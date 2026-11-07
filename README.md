@@ -84,7 +84,7 @@ The meeting app has to play on the same device as the Windows default output, be
 | Headphones (no echo, an unrelated reference playing): level of your voice | not measured | -0.1 dB |
 | Residual suppressor, far end alone | 30.0 dB without it | 36.2 dB with it (near-end level changes by 0.1 dB) |
 | Added latency | 0 | 0 samples (every output sample depends only on earlier input) |
-| Cost, 10 ms blocks, 16 kHz / 48 kHz | not measured | 0.006-0.02 / 0.04-0.05 of real time (p99 under 2 ms of a 10 ms block; the delay search costs the audio thread 0.02 ms at p99) |
+| Cost, 10 ms blocks, 16 kHz / 48 kHz | not measured | 0.008 / 0.024 of real time (p99 under 0.5 ms of a 10 ms block; the delay search costs the audio thread 0.02 ms at p99) |
 
 **Known limitations.** Tested on synthetic signals only: real rooms, Bluetooth hardware and USB speakerphones were not available. It cancels only what plays on the
 default output (a meeting app on another device is not seen), and cancellation starts about two seconds into far-end speech, when the delay lock is made. Moving the
@@ -164,7 +164,7 @@ Echo cancellation was verified on synthetic signals and the translation on a fak
 
 Live ASR always runs on the CPU, which leaves the GPU free. On 8 GB cards the heavy steps run one after another (the app frees the LLM before Whisper loads).
 
-Measured on the development machine (release build, single thread, 10 ms blocks): Light 0.06, Balanced 0.17, Max 0.29 real-time factor, plus about 0.05 for echo cancellation at 48 kHz (0.006-0.02 at 16 kHz).
+Measured on the development machine (release build, single thread, 10 ms blocks): Light 0.06, Balanced 0.17, Max 0.29 real-time factor, plus about 0.025 for echo cancellation at 48 kHz (0.008 at 16 kHz).
 
 ## GPU acceleration pack
 

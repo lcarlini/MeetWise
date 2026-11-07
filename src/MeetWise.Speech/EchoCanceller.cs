@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace MeetWise.Speech;
 
@@ -69,6 +70,10 @@ public sealed class EchoCanceller
     private int _geigelHold, _xiHold, _xiPersist, _badFrames, _silentRun, _resets, _lockedFrames;
     private long _samples, _frozenSamples, _geigelSamples, _xiSamples;
     private float _gain = 1f, _gainTarget = 1f;
+    private bool _trained;                          // false while every weight is zero: the filter output is then exactly zero and need not be computed
+
+    /// <summary>True while a background delay search is running (tests that feed audio faster than real time wait for it, as real hops would).</summary>
+    public bool DelaySearchRunning => _estimator?.IsEstimating ?? false;
 
     public int Taps => _taps;
     public int DelaySamples => _delay;
@@ -105,7 +110,7 @@ public sealed class EchoCanceller
     /// <summary>Forget everything learned: filter, delay, history. Used when the acoustic path certainly changed.</summary>
     public void Reset()
     {
-        Array.Clear(_w); Array.Clear(_hist);
+        ClearWeights(); Array.Clear(_hist);
         _pos = _histKeep - 1; _delay = 0; _energy = _avgEnergy = 0; _farTrack = _micTrack = 0;
         _fMic = _fErr = _fEcho = 0; _inFrame = 0;
         ResetErrorStatistics();
@@ -115,6 +120,12 @@ public sealed class EchoCanceller
         RestartCalibration();
         _estimator?.Reset();
         _seenVersion = _estimator?.Version ?? 0;
+    }
+
+    private void ClearWeights()
+    {
+        Array.Clear(_w);
+        _trained = false;
     }
 
     private void ResetErrorStatistics()
@@ -160,7 +171,7 @@ public sealed class EchoCanceller
             _silentRun = Math.Abs(m) < 1e-7f ? _silentRun + 1 : 0;
             bool muted = _silentRun >= silentLimit;
 
-            float echo = farActive ? Dot(w, window) : 0f;
+            float echo = farActive && _trained ? Dot(w, window) : 0f;
             float err = m - echo;
             if (muted) err = 0f; // a muted microphone must stay silent instead of receiving the negative of the echo estimate
             _samples++;
@@ -183,6 +194,7 @@ public sealed class EchoCanceller
                 if (frozen) _frozenSamples++;
                 float denom = (float)(_energy + Math.Max(_taps * 1e-6, 0.05 * _avgEnergy));
                 Axpy(w, window, mu * err / denom);
+                _trained = true;
             }
             if (_geigelHold > 0) _geigelHold--;
 
@@ -203,7 +215,7 @@ public sealed class EchoCanceller
         {
             // the lock was withdrawn: back to the unaligned, untrained state
             _delay = 0; _aligned = false;
-            Array.Clear(_w);
+            ClearWeights();
             RecomputeEnergy();
             ResetErrorStatistics();
             RestartCalibration();
@@ -218,7 +230,7 @@ public sealed class EchoCanceller
         _aligned = true;
         _delay = target;
         // the path moved: what the filter learned describes the old one
-        Array.Clear(_w);
+        ClearWeights();
         RecomputeEnergy();
         ResetErrorStatistics();
         RestartCalibration();
@@ -270,7 +282,7 @@ public sealed class EchoCanceller
             // divergence guard: a filter that makes the signal clearly louder than it was is worse than none
             if (errE > 10 * micE && micE > _frame * 1e-6)
             {
-                if (++_badFrames >= 5) { Array.Clear(_w); _resets++; _badFrames = 0; ResetErrorStatistics(); }
+                if (++_badFrames >= 5) { ClearWeights(); _resets++; _badFrames = 0; ResetErrorStatistics(); }
             }
             else _badFrames = 0;
 
@@ -298,7 +310,7 @@ public sealed class EchoCanceller
             if (errE <= 6 * rhatE && errRms > 0.002)      // within 8 dB of the residual the filter usually leaves, and audible
                 _gainTarget = (float)Math.Clamp(0.002 / errRms, MinGain, 1.0);
         }
-        if (!double.IsFinite(_energy) || float.IsNaN(_w[0])) { Array.Clear(_w); _resets++; RecomputeEnergy(); }
+        if (!double.IsFinite(_energy) || float.IsNaN(_w[0])) { ClearWeights(); _resets++; RecomputeEnergy(); }
     }
 
     private void Push(float x)
@@ -328,21 +340,36 @@ public sealed class EchoCanceller
 
     private static float Dot(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
     {
-        var acc = Vector<float>.Zero;
-        int i = 0, step = Vector<float>.Count;
-        for (; i <= a.Length - step; i += step)
-            acc += new Vector<float>(a.Slice(i, step)) * new Vector<float>(b.Slice(i, step));
-        float sum = Vector.Sum(acc);
-        for (; i < a.Length; i++) sum += a[i] * b[i];
+        int n = Math.Min(a.Length, b.Length), step = Vector<float>.Count, i = 0;
+        ref float ra = ref System.Runtime.InteropServices.MemoryMarshal.GetReference(a);
+        ref float rb = ref System.Runtime.InteropServices.MemoryMarshal.GetReference(b);
+        Vector<float> s0 = Vector<float>.Zero, s1 = s0, s2 = s0, s3 = s0;
+        for (; i <= n - 4 * step; i += 4 * step)
+        {
+            s0 += Vector.LoadUnsafe(ref ra, (nuint)i) * Vector.LoadUnsafe(ref rb, (nuint)i);
+            s1 += Vector.LoadUnsafe(ref ra, (nuint)(i + step)) * Vector.LoadUnsafe(ref rb, (nuint)(i + step));
+            s2 += Vector.LoadUnsafe(ref ra, (nuint)(i + 2 * step)) * Vector.LoadUnsafe(ref rb, (nuint)(i + 2 * step));
+            s3 += Vector.LoadUnsafe(ref ra, (nuint)(i + 3 * step)) * Vector.LoadUnsafe(ref rb, (nuint)(i + 3 * step));
+        }
+        for (; i <= n - step; i += step) s0 += Vector.LoadUnsafe(ref ra, (nuint)i) * Vector.LoadUnsafe(ref rb, (nuint)i);
+        float sum = Vector.Sum((s0 + s1) + (s2 + s3));
+        for (; i < n; i++) sum += Unsafe.Add(ref ra, i) * Unsafe.Add(ref rb, i);
         return sum;
     }
 
     private static void Axpy(Span<float> w, ReadOnlySpan<float> x, float g)
     {
-        int i = 0, step = Vector<float>.Count;
+        int n = Math.Min(w.Length, x.Length), step = Vector<float>.Count, i = 0;
+        ref float rw = ref System.Runtime.InteropServices.MemoryMarshal.GetReference(w);
+        ref float rx = ref System.Runtime.InteropServices.MemoryMarshal.GetReference(x);
         var gv = new Vector<float>(g);
-        for (; i <= w.Length - step; i += step)
-            (new Vector<float>(w.Slice(i, step)) + gv * new Vector<float>(x.Slice(i, step))).CopyTo(w.Slice(i, step));
-        for (; i < w.Length; i++) w[i] += g * x[i];
+        for (; i <= n - 2 * step; i += 2 * step)
+        {
+            Vector.StoreUnsafe(Vector.LoadUnsafe(ref rw, (nuint)i) + gv * Vector.LoadUnsafe(ref rx, (nuint)i), ref rw, (nuint)i);
+            Vector.StoreUnsafe(Vector.LoadUnsafe(ref rw, (nuint)(i + step)) + gv * Vector.LoadUnsafe(ref rx, (nuint)(i + step)), ref rw, (nuint)(i + step));
+        }
+        for (; i <= n - step; i += step)
+            Vector.StoreUnsafe(Vector.LoadUnsafe(ref rw, (nuint)i) + gv * Vector.LoadUnsafe(ref rx, (nuint)i), ref rw, (nuint)i);
+        for (; i < n; i++) Unsafe.Add(ref rw, i) += g * Unsafe.Add(ref rx, i);
     }
 }
