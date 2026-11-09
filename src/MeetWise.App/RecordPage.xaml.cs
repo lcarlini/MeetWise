@@ -1,3 +1,4 @@
+using MeetWise.App.Try;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -23,6 +24,7 @@ public partial class RecordPage : UserControl
     private readonly Dictionary<string, SubtitleRow> _partials = new();
     private readonly HashSet<string> _speaking = new();
     private readonly DispatcherTimer _ui = new() { Interval = TimeSpan.FromMilliseconds(120) };
+    private readonly DispatcherTimer _state = new() { Interval = TimeSpan.FromSeconds(3) };
     private CaptionOverlayWindow? _captions;
     private RecordingResult? _last;
     private bool _busy;
@@ -32,6 +34,15 @@ public partial class RecordPage : UserControl
     {
         InitializeComponent();
         _ctx = ctx;
+        RecTest.Setup(new QuickSpec
+        {
+            TitleKey = "quick.rec.title", HintKey = "quick.rec.hint", Seconds = 10,
+            MicId = () => _ctx.RecorderMicId(),
+            Run = i => QuickRunners.RecordPreview(_ctx, i, LanguageCombo.SelectedValue as string ?? Languages.Auto, EnglishCheck.IsChecked == true, _ctx.Enhance.IsRunning)
+        });
+        _state.Tick += (_, _) => ShowCleanState();
+        _state.Start();
+        ShowCleanState();
         LiveList.ItemsSource = _rows;
         _rows.CollectionChanged += (_, _) => EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -66,7 +77,6 @@ public partial class RecordPage : UserControl
         _ctx.Session.Failed += t => d.BeginInvoke(() => StatusText.Text = t);
         _ctx.Session.Stopped += r => d.BeginInvoke(() => OnStopped(r));
         _ui.Tick += (_, _) => Tick();
-        _ui.Start();
         SetVisual(false);
         Mode_Changed(null, null!);
     }
@@ -82,6 +92,7 @@ public partial class RecordPage : UserControl
         ModeCombo.DisplayMemberPath = "Text"; ModeCombo.SelectedValuePath = "Value";
         ModeCombo.ItemsSource = new[]
         {
+            new Choice<CaptureMode>(CaptureMode.VideoAudioSubtitles, Loc.T("rec.mode.videosubs")),
             new Choice<CaptureMode>(CaptureMode.VideoAudio, Loc.T("rec.mode.video")),
             new Choice<CaptureMode>(CaptureMode.AudioOnly, Loc.T("rec.mode.audio")),
             new Choice<CaptureMode>(CaptureMode.SubtitlesOnly, Loc.T("rec.mode.text"))
@@ -103,15 +114,16 @@ public partial class RecordPage : UserControl
         LanguageCombo.SelectedValue = Languages.IsKnown(lang) ? lang : Languages.Auto;
     }
 
-    private static CaptureMode ToMode(CapturePreset p) => p switch { CapturePreset.AudioVideo => CaptureMode.VideoAudio, CapturePreset.AudioOnly => CaptureMode.AudioOnly, _ => CaptureMode.SubtitlesOnly };
-    private static CapturePreset ToPreset(CaptureMode m) => m switch { CaptureMode.VideoAudio => CapturePreset.AudioVideo, CaptureMode.AudioOnly => CapturePreset.AudioOnly, _ => CapturePreset.TranscriptOnly };
+    private static CaptureMode ToMode(CapturePreset p) => p switch { CapturePreset.AudioVideo => CaptureMode.VideoAudio, CapturePreset.AudioVideoSubtitles => CaptureMode.VideoAudioSubtitles, CapturePreset.AudioOnly => CaptureMode.AudioOnly, _ => CaptureMode.SubtitlesOnly };
+    private static CapturePreset ToPreset(CaptureMode m) => m switch { CaptureMode.VideoAudio => CapturePreset.AudioVideo, CaptureMode.VideoAudioSubtitles => CapturePreset.AudioVideoSubtitles, CaptureMode.AudioOnly => CapturePreset.AudioOnly, _ => CapturePreset.TranscriptOnly };
 
     private void Mode_Changed(object? sender, SelectionChangedEventArgs? e)
     {
         if (MonitorCombo is null || QualityCombo is null) return;
-        bool video = ModeCombo.SelectedValue is CaptureMode.VideoAudio;
+        bool video = ModeCombo.SelectedValue is CaptureMode.VideoAudio or CaptureMode.VideoAudioSubtitles;
         MonitorCombo.IsEnabled = QualityCombo.IsEnabled = video;
-        QualityLabel.Opacity = video ? 1 : 0.4;
+        QualityLabel.Opacity = video ? 1 : 0.5;
+        QualityLabel.Text = Loc.T(video ? "rec.quality" : "rec.quality.videoonly");
     }
 
     private RecordingOptions BuildOptions()
@@ -122,7 +134,7 @@ public partial class RecordPage : UserControl
         if (MicCombo.SelectedItem is AudioDeviceInfo mic) s.MicrophoneId = mic.Id;
         s.Preset = ToPreset(mode);
         s.MonitorDeviceName = monitor?.DeviceName ?? "";
-        s.Quality = QualityCombo.SelectedValue is QualityPreset q ? q : QualityPreset.Balanced;
+        if (QualityCombo.SelectedValue is QualityPreset q) s.Quality = q;
         s.RecordMicrophone = UseMicCheck.IsChecked == true;
         s.RecordSystemAudio = SystemAudioCheck.IsChecked == true;
         s.SubtitleLanguage = LanguageCombo.SelectedValue as string ?? Languages.Auto;
@@ -180,12 +192,14 @@ public partial class RecordPage : UserControl
         SavedBanner.Visibility = Visibility.Collapsed;
         await _ctx.Session.StartAsync(options);
         if (_ctx.Settings.FloatingCaptions) _captions ??= new CaptionOverlayWindow();
+        _ui.Start();
         SetVisual(true);
     }
 
     private void OnStopped(RecordingResult r)
     {
         _last = r;
+        _ui.Stop();
         SetVisual(false);
         _captions?.Hide();
         _partials.Clear();
@@ -249,6 +263,22 @@ public partial class RecordPage : UserControl
         MicLevel.Value = Math.Sqrt(mic);   // a gentle curve so quiet speech still moves the meter
         SystemLevel.Value = Math.Sqrt(sys);
         RecDotIndicator.Opacity = (_blink++ / 4) % 2 == 0 ? 1 : 0.25;
+    }
+
+    /// <summary>Called when the app closes: a hidden overlay window would otherwise keep the process alive.</summary>
+    public void Shutdown()
+    {
+        _ui.Stop();
+        _state.Stop();
+        _captions?.Close();
+        _captions = null;
+    }
+
+    /// <summary>Says plainly whether the recording gets the cleaned voice (MeetWise Microphone running) or the raw microphone.</summary>
+    private void ShowCleanState()
+    {
+        if (!IsVisible && CleanStateText.Text.Length > 0) return;
+        CleanStateText.Text = _ctx.Enhance.IsRunning ? Loc.T("rec.clean.on", _ctx.Enhance.Applied) : Loc.T("rec.clean.off");
     }
 
     // ---- after a recording ----

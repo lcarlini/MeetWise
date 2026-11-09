@@ -15,7 +15,7 @@ namespace MeetWise.App;
 /// <summary>The MeetWise Microphone card (virtual mic, voice lock, always-on, start with Windows) and the English coach.</summary>
 public partial class MeetingsPage
 {
-    private readonly DispatcherTimer _micTimer = new() { Interval = TimeSpan.FromSeconds(3) };
+    private readonly DispatcherTimer _micTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     public event Action<string>? TrayTipChanged;
     private readonly StartupRegistration _startup = new();
     private CoachSession? _coach;
@@ -31,39 +31,55 @@ public partial class MeetingsPage
         CoachOverlayCheck.IsChecked = _settings.CoachOverlay;
         EchoCheck.IsChecked = _settings.EchoCancellation;
         IsolateCheck.IsChecked = _settings.VoiceIsolation;
-        VirtualHint.Text = "The MeetWise Microphone does not exist yet. Press \"Create MeetWise Microphone\": Windows asks for permission once, and may need a restart to show the new device.";
+        VirtualHint.Text = Loc.T("mtg.hint.create");
 
         var outs = new AudioDeviceService().GetRenderDevices().ToList();
         RenderCombo.ItemsSource = outs;
         RenderCombo.SelectedIndex = outs.Count > 0 ? 0 : -1;
 
         _enhance.StatusChanged += _ => Dispatcher.BeginInvoke(RefreshMicCard);
+        _enhance.VoiceLockSuspended += () => Dispatcher.BeginInvoke(() => StatusText.Text = "Voice lock is too heavy for this PC right now, so it was paused to keep your voice smooth. Noise cancellation is still on.");
         _enhance.Downgraded += mode => Dispatcher.BeginInvoke(() => StatusText.Text = $"Your PC could not keep up, so noise cancellation switched to {mode} mode.");
-        _micTimer.Tick += (_, _) => RefreshMicCard();
+        _micTimer.Tick += (_, _) => { if (Window.GetWindow(this) is { IsVisible: true, WindowState: not WindowState.Minimized }) RefreshMicCard(); };
         _micTimer.Start();
         RefreshMicCard();
 
         if (_settings.AlwaysOnMicrophone && VirtualMic.IsInstalled()) _ = StartMicrophoneAsync();
     }
 
+    private int _refreshing;
+
+    /// <summary>Device enumeration is slow COM work: do it off the UI thread and only update the controls here, never overlapping two runs.</summary>
     private void RefreshMicCard()
     {
-        var mic = VirtualMic.FindMic();
-        bool installed = mic is not null && VirtualMic.FindFeed() is not null;
-        var defaults = DefaultMicrophone.Current();
-        bool isDefault = installed && defaults.Communications == mic!.Id;
+        if (Interlocked.Exchange(ref _refreshing, 1) == 1) return;
+        Task.Run(() =>
+        {
+            var mic = VirtualMic.FindMic();
+            bool installed = mic is not null && VirtualMic.FindFeed() is not null;
+            bool isDefault = installed && DefaultMicrophone.Current().Communications == mic!.Id;
+            return (installed, isDefault);
+        }).ContinueWith(t =>
+        {
+            Interlocked.Exchange(ref _refreshing, 0);
+            if (t.IsCompletedSuccessfully) Dispatcher.BeginInvoke(() => ApplyMicCard(t.Result.installed, t.Result.isDefault));
+        });
+    }
+
+    private void ApplyMicCard(bool installed, bool isDefault)
+    {
 
         VirtualHint.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
         CreateMicButton.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
         DefaultMicButton.IsEnabled = installed && !isDefault;
         RestoreMicButton.IsEnabled = isDefault && _settings.PreviousDefaultCommunications is not null;
         AlwaysOnCheck.IsEnabled = installed;
-        EnhanceButton.Content = _enhance.IsRunning ? "Stop cleanup" : "Start cleanup";
+        EnhanceButton.Content = Loc.T(_enhance.IsRunning ? "mtg.mic.stop" : "mtg.mic.start");
 
         string text;
-        if (!installed) text = "MeetWise Microphone: not installed.";
-        else if (!_enhance.IsRunning) text = "MeetWise Microphone: installed, but not running. Turn on \"Always on\" so apps receive your cleaned voice.";
-        else text = $"MeetWise Microphone: ON ({_enhance.Status}). Apps that use it hear your cleaned voice{(isDefault ? " (it is your Windows default microphone)" : "")}. {_enhance.Stats}";
+        if (!installed) text = Loc.T("mtg.status.notinstalled");
+        else if (!_enhance.IsRunning) text = Loc.T("mtg.status.off");
+        else text = Loc.T("mtg.status.on", _enhance.Status, isDefault ? Loc.T("mtg.status.isdefault") : "", _enhance.Stats) + Environment.NewLine + Loc.T("cmp.applied", _enhance.Applied);
         MicStatusText.Text = text;
         TrayTipChanged?.Invoke(installed && _enhance.IsRunning ? "MeetWise: microphone clean-up is on" : "MeetWise");
     }
@@ -89,7 +105,7 @@ public partial class MeetingsPage
     private async Task RestartMicrophoneIfRunningAsync()
     {
         if (!_enhance.IsRunning) return;
-        _enhance.Stop();
+        await Task.Run(() => _enhance.Stop()); // stopping joins audio threads: never on the UI thread
         await StartMicrophoneAsync();
     }
 
@@ -166,7 +182,7 @@ public partial class MeetingsPage
         _settings.AlwaysOnMicrophone = AlwaysOnCheck.IsChecked == true;
         _store.Save(_settings);
         if (_settings.AlwaysOnMicrophone) await StartMicrophoneAsync();
-        else { _enhance.Stop(); RefreshMicCard(); }
+        else { await Task.Run(() => _enhance.Stop()); RefreshMicCard(); }
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)

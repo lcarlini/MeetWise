@@ -27,13 +27,16 @@ public static class VirtualMic
             using var e = new MMDeviceEnumerator();
             foreach (var d in e.EnumerateAudioEndPoints(flow, DeviceState.Active))
             {
-                var adapter = AdapterOf(d);
+                // the adapter name of a device id never changes, and reading the property store is the slow part of every refresh
+                var adapter = AdapterCache.GetOrAdd(d.ID, _ => AdapterOf(d));
                 if (includeVirtual || !IsVirtualAdapter(adapter)) list.Add(new EndpointInfo(d.ID, d.FriendlyName, adapter, flow));
             }
         }
         catch (Exception ex) { AppLog.Warn("Endpoint enumeration failed: " + ex.Message); }
         return list;
     }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> AdapterCache = new();
 
     public static string AdapterOf(MMDevice d)
     {

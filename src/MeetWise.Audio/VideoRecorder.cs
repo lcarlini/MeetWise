@@ -136,6 +136,30 @@ public sealed class VideoRecorder : IDisposable
     /// </summary>
     public static async Task<string> MuxAsync(string ffmpeg, string mkv, string? micWav, string? loopWav, DateTime videoStartUtc,
         DateTime audioStartUtc, string outputMp4)
+        => (await MuxAsync(ffmpeg, mkv, micWav, loopWav, videoStartUtc, audioStartUtc, outputMp4, null, null)).Path;
+
+    /// <summary>
+    /// Same, and when <paramref name="srt"/> is given the subtitles are embedded as a switchable mov_text track. If ffmpeg refuses the subtitle
+    /// track the video is built without it and the notice says so: the recording is never lost over a caption problem.
+    /// </summary>
+    public static async Task<(string Path, string? Notice)> MuxAsync(string ffmpeg, string mkv, string? micWav, string? loopWav, DateTime videoStartUtc,
+        DateTime audioStartUtc, string outputMp4, string? srt, string? language)
+    {
+        if (srt is not null && File.Exists(srt))
+        {
+            try { return (await MuxCoreAsync(ffmpeg, mkv, micWav, loopWav, videoStartUtc, audioStartUtc, outputMp4, srt, language), null); }
+            catch (InvalidOperationException ex)
+            {
+                Core.Logging.AppLog.Warn("Subtitle track could not be embedded: " + ex.Message);
+                var path = await MuxCoreAsync(ffmpeg, mkv, micWav, loopWav, videoStartUtc, audioStartUtc, outputMp4, null, null);
+                return (path, "The subtitles could not be embedded in the video; they are saved in the .srt file next to it.");
+            }
+        }
+        return (await MuxCoreAsync(ffmpeg, mkv, micWav, loopWav, videoStartUtc, audioStartUtc, outputMp4, null, null), null);
+    }
+
+    private static async Task<string> MuxCoreAsync(string ffmpeg, string mkv, string? micWav, string? loopWav, DateTime videoStartUtc,
+        DateTime audioStartUtc, string outputMp4, string? srt, string? language)
     {
         var inputs = new List<(string Path, double Delay)>();
         double delay = Math.Max(0, (audioStartUtc - videoStartUtc).TotalSeconds);
@@ -144,9 +168,11 @@ public sealed class VideoRecorder : IDisposable
 
         var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y", "-i", Q(mkv) };
         foreach (var (path, _) in inputs) args.AddRange(new[] { "-i", Q(path) });
+        int subIndex = inputs.Count + 1;
+        if (srt is not null) args.AddRange(new[] { "-i", Q(srt) });
         if (inputs.Count == 0)
         {
-            args.AddRange(new[] { "-c", "copy" });
+            args.AddRange(srt is null ? new[] { "-c", "copy" } : new[] { "-map", "0", "-c", "copy" });
         }
         else
         {
@@ -155,6 +181,8 @@ public sealed class VideoRecorder : IDisposable
                 : string.Join("", inputs.Select((_, i) => $"[a{i}]")) + $"amix=inputs={inputs.Count}:duration=longest:normalize=0[aout]";
             args.AddRange(new[] { "-filter_complex", Q(string.Join(";", chains) + ";" + mix), "-map", "0:v", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k" });
         }
+        if (srt is not null)
+            args.AddRange(new[] { "-map", $"{subIndex}:0", "-c:s", "mov_text", "-metadata:s:s:0", "language=" + Iso3(language) });
         args.AddRange(new[] { "-movflags", "+faststart", Q(outputMp4) });
 
         var (code, output) = await FFmpegPack.RunAsync(ffmpeg, string.Join(' ', args), 10 * 60_000);
@@ -166,6 +194,8 @@ public sealed class VideoRecorder : IDisposable
 
         static string Q(string s) => "\"" + s + "\"";
     }
+
+    private static string Iso3(string? code) => code switch { "en" => "eng", "pt" => "por", "es" => "spa", "fr" => "fra", "de" => "deu", "it" => "ita", _ => "und" };
 
     /// <summary>
     /// Finds captures whose recording never finished (crash, power loss) and turns them into MP4s, together with their audio files.

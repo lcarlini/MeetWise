@@ -49,6 +49,36 @@ public class EnhancerTests
         return outp.ToArray();
     }
 
+    [Fact]
+    public void Engine_GathersInputIntoLargerBlocks_AndLosesNoAudio()
+    {
+        var model = Path.Combine(Models, "enhance", "gtcrn_simple.onnx");
+        if (!File.Exists(model)) return;
+        var rng = new Random(3);
+        var input = new float[16000 * 3];
+        for (int i = 0; i < input.Length; i++) input[i] = (float)((rng.NextDouble() * 2 - 1) * 0.1);
+
+        int RunWith(int minBlockMs, out int emptyCalls)
+        {
+            using var engine = new EnhancementEngine(16000, new EnhancementOptions(EnhancerKind.Light, model, false, MinBlockMs: minBlockMs));
+            int total = 0; emptyCalls = 0;
+            for (int i = 0; i + 160 <= input.Length; i += 160)
+            {
+                var y = engine.Process(input.AsSpan(i, 160).ToArray());
+                if (y.Length == 0) emptyCalls++;
+                total += y.Length;
+            }
+            total += engine.Flush().Length;
+            Assert.InRange(engine.RecentLoad, 0, 50); // never NaN
+            return total;
+        }
+
+        int plain = RunWith(0, out int plainEmpty);
+        int batched = RunWith(80, out int batchedEmpty);
+        Assert.True(batchedEmpty > plainEmpty + 100, "80 ms blocks should leave most 10 ms calls empty");
+        Assert.InRange(batched, plain - 1600, plain + 1600); // the same audio comes out, give or take one block of latency
+    }
+
     [Theory]
     [InlineData(EnhancerKind.Light, "gtcrn_simple.onnx")]
     [InlineData(EnhancerKind.FullBand, "dpdfnet2_48khz_hr.onnx")]

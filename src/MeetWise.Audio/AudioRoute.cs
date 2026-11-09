@@ -206,9 +206,10 @@ public sealed class LoopbackReference : IDisposable
             if (_disposed || !ReferenceEquals(cap, _cap)) return;
             Healthy = false;
             _cap = null;
-            try { cap.Dispose(); } catch (Exception) { }
             ScheduleRestart(error?.Message);
         }
+        // outside the lock: disposing joins the capture thread, and Dispose() holds the lock while it waits for that same thread
+        try { cap.Dispose(); } catch (Exception) { }
     }
 
     private void ScheduleRestart(string? why)
@@ -242,17 +243,19 @@ public sealed class LoopbackReference : IDisposable
 
     public void Dispose()
     {
+        WasapiLoopbackCapture? cap;
         lock (_life)
         {
             _disposed = true;
             _retry?.Dispose();
-            var cap = _cap;
+            cap = _cap;
             _cap = null;
-            if (cap is not null)
-            {
-                try { cap.StopRecording(); } catch (Exception) { }
-                try { cap.Dispose(); } catch (Exception) { }
-            }
+        }
+        // never join the capture thread while holding the lock its RecordingStopped handler needs (that deadlocked the whole window)
+        if (cap is not null)
+        {
+            try { cap.StopRecording(); } catch (Exception) { }
+            try { cap.Dispose(); } catch (Exception) { }
         }
     }
 }

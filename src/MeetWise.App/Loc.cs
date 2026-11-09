@@ -45,7 +45,7 @@ public sealed class Loc : INotifyPropertyChanged
     public static IEnumerable<string> Keys => Texts["en"].Keys;
     public static IReadOnlyList<string> SupportedLanguages { get; } = new[] { "en", "pt", "es" };
 
-    public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Texts = new Dictionary<string, IReadOnlyDictionary<string, string>>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Texts = LocExtra.Merge(new Dictionary<string, IReadOnlyDictionary<string, string>>
     {
         ["en"] = new Dictionary<string, string>
         {
@@ -53,7 +53,7 @@ public sealed class Loc : INotifyPropertyChanged
             ["nav.meetings"] = "Meetings", ["nav.settings"] = "Settings",
 
             ["rec.title"] = "Record your screen with live subtitles", ["rec.monitor"] = "Screen", ["rec.mic"] = "Microphone", ["rec.sysaudio"] = "System audio",
-            ["rec.usemic"] = "Record microphone", ["rec.mode"] = "What to save", ["rec.mode.video"] = "Video + audio", ["rec.mode.audio"] = "Audio only",
+            ["rec.usemic"] = "Record microphone", ["rec.mode"] = "What to save", ["rec.mode.video"] = "Video + audio", ["rec.mode.videosubs"] = "Video + audio + subtitles", ["rec.quality.videoonly"] = "Quality (video modes only)", ["rec.mode.audio"] = "Audio only",
             ["rec.mode.text"] = "Subtitles only", ["rec.quality"] = "Quality", ["rec.q.low"] = "Low file size", ["rec.q.balanced"] = "Balanced",
             ["rec.q.max"] = "Maximum quality", ["rec.language"] = "Spoken language", ["rec.english"] = "Subtitles in English", ["rec.srt"] = "Save .srt file",
             ["rec.floating"] = "Floating captions", ["rec.start"] = "Start recording", ["rec.stop"] = "Stop", ["rec.live"] = "Live subtitles",
@@ -90,7 +90,7 @@ public sealed class Loc : INotifyPropertyChanged
             ["nav.meetings"] = "Reuniões", ["nav.settings"] = "Configurações",
 
             ["rec.title"] = "Grave sua tela com legendas ao vivo", ["rec.monitor"] = "Tela", ["rec.mic"] = "Microfone", ["rec.sysaudio"] = "Áudio do sistema",
-            ["rec.usemic"] = "Gravar microfone", ["rec.mode"] = "O que salvar", ["rec.mode.video"] = "Vídeo + áudio", ["rec.mode.audio"] = "Somente áudio",
+            ["rec.usemic"] = "Gravar microfone", ["rec.mode"] = "O que salvar", ["rec.mode.video"] = "Vídeo + áudio", ["rec.mode.videosubs"] = "Vídeo + áudio + legendas", ["rec.quality.videoonly"] = "Qualidade (só nos modos com vídeo)", ["rec.mode.audio"] = "Somente áudio",
             ["rec.mode.text"] = "Somente legendas", ["rec.quality"] = "Qualidade", ["rec.q.low"] = "Arquivo menor", ["rec.q.balanced"] = "Equilibrada",
             ["rec.q.max"] = "Qualidade máxima", ["rec.language"] = "Idioma falado", ["rec.english"] = "Legendas em inglês", ["rec.srt"] = "Salvar arquivo .srt",
             ["rec.floating"] = "Legendas flutuantes", ["rec.start"] = "Iniciar gravação", ["rec.stop"] = "Parar", ["rec.live"] = "Legendas ao vivo",
@@ -127,7 +127,7 @@ public sealed class Loc : INotifyPropertyChanged
             ["nav.meetings"] = "Reuniones", ["nav.settings"] = "Configuración",
 
             ["rec.title"] = "Graba tu pantalla con subtítulos en vivo", ["rec.monitor"] = "Pantalla", ["rec.mic"] = "Micrófono", ["rec.sysaudio"] = "Audio del sistema",
-            ["rec.usemic"] = "Grabar micrófono", ["rec.mode"] = "Qué guardar", ["rec.mode.video"] = "Vídeo + audio", ["rec.mode.audio"] = "Solo audio",
+            ["rec.usemic"] = "Grabar micrófono", ["rec.mode"] = "Qué guardar", ["rec.mode.video"] = "Vídeo + audio", ["rec.mode.videosubs"] = "Vídeo + audio + subtítulos", ["rec.quality.videoonly"] = "Calidad (solo en modos con vídeo)", ["rec.mode.audio"] = "Solo audio",
             ["rec.mode.text"] = "Solo subtítulos", ["rec.quality"] = "Calidad", ["rec.q.low"] = "Archivo pequeño", ["rec.q.balanced"] = "Equilibrada",
             ["rec.q.max"] = "Calidad máxima", ["rec.language"] = "Idioma hablado", ["rec.english"] = "Subtítulos en inglés", ["rec.srt"] = "Guardar archivo .srt",
             ["rec.floating"] = "Subtítulos flotantes", ["rec.start"] = "Iniciar grabación", ["rec.stop"] = "Detener", ["rec.live"] = "Subtítulos en vivo",
@@ -158,7 +158,7 @@ public sealed class Loc : INotifyPropertyChanged
 
             ["set.language"] = "Idioma de la interfaz", ["common.close"] = "Cerrar"
         }
-    };
+    });
 }
 
 /// <summary>XAML: <c>Text="{local:T rec.start}"</c>. Binds to <see cref="Loc"/> so a language change updates the text live.</summary>

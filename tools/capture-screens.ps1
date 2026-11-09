@@ -1,4 +1,4 @@
-# Captures a real screenshot of every Studio page into docs\img.
+﻿# Captures a real screenshot of every Studio page into docs\img.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\capture-screens.ps1 [-DataDir <folder>] [-Language en|pt|es]
 #
@@ -37,7 +37,7 @@ $json | Add-Member -NotePropertyName uiLanguage -NotePropertyValue $Language -Fo
 $json | Add-Member -NotePropertyName hideWindowFromCapture -NotePropertyValue $false -Force
 $json | ConvertTo-Json -Depth 5 | Set-Content $settings
 
-Get-Process MeetWise.App -ErrorAction SilentlyContinue | Stop-Process -Force
+if (Get-Process MeetWise.App -ErrorAction SilentlyContinue) { throw "MeetWise is running. Close it first (tray icon > Exit): this script never closes your own MeetWise." }
 $env:MEETWISE_DATA = $DataDir
 $proc = Start-Process $exePath -PassThru
 $h = [IntPtr]::Zero

@@ -25,7 +25,7 @@ function Start-App([string]$DataDir, [string]$Exe, [string]$Language = "en") {
     $json | Add-Member -NotePropertyName uiLanguage -NotePropertyValue $Language -Force
     $json | Add-Member -NotePropertyName hideWindowFromCapture -NotePropertyValue $false -Force
     $json | ConvertTo-Json -Depth 5 | Set-Content $settings
-    Get-Process MeetWise.App -ErrorAction SilentlyContinue | Stop-Process -Force
+    if (Get-Process MeetWise.App -ErrorAction SilentlyContinue) { throw "MeetWise is running. Close it first (tray icon > Exit): this script never closes your own MeetWise." }
     $env:MEETWISE_DATA = $DataDir
     $script:Proc = Start-Process (Resolve-Path $Exe).Path -PassThru
     $script:H = [IntPtr]::Zero

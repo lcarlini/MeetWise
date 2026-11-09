@@ -24,9 +24,13 @@ public sealed class EnhancementController : IDisposable
     private NoiseMode _mode;
     private EnhancementOptions? _options;
     private int _restarting;
+    private bool _voiceLockSuspended;
 
     /// <summary>Raised on a background thread when the mode was lowered because processing could not keep up.</summary>
     public event Action<NoiseMode>? Downgraded;
+
+    /// <summary>Raised on a background thread when voice lock was switched off for this session because it was slower than real time.</summary>
+    public event Action? VoiceLockSuspended;
 
     /// <summary>Raised (any thread) when the route starts, stops or has to wait for a device.</summary>
     public event Action<string>? StatusChanged;
@@ -36,7 +40,7 @@ public sealed class EnhancementController : IDisposable
     public bool IsRunning => _route is not null;
     public NoiseMode ActiveMode => _mode;
     public string Status => _route?.Status ?? "stopped";
-    public string Stats => _route is null ? "" : $"load {_route.RecentLoad:P0} of real time, {_route.Overflows} dropouts, {_route.Restarts} restart(s)";
+    public string Stats => _route is null ? "" : Loc.T("mtg.status.stats", _route.RecentLoad.ToString("P0"), _route.Overflows, _route.Restarts);
 
     /// <param name="renderDeviceId">Where the cleaned audio goes. Null means the MeetWise Mic Feed (the virtual microphone).</param>
     public async Task StartAsync(AppSettings s, string? renderDeviceId = null, IProgress<double>? progress = null)
@@ -46,6 +50,7 @@ public sealed class EnhancementController : IDisposable
             ?? throw new InvalidOperationException("The MeetWise Microphone is not installed yet. Click \"Create MeetWise Microphone\" first.");
         _settings = s;
         _mode = s.NoiseCancellation;
+        _voiceLockSuspended = false;
         _options = await BuildOptionsAsync(progress);
 
         var route = new ResilientRoute(CreateRoute);
@@ -64,27 +69,55 @@ public sealed class EnhancementController : IDisposable
         _watcher?.Poke();
     }
 
-    private async Task<EnhancementOptions> BuildOptionsAsync(IProgress<double>? progress)
+    private Task<EnhancementOptions> BuildOptionsAsync(IProgress<double>? progress)
+        => OptionsForAsync(_http, _settings!, _mode, _settings!.VoiceIsolation && !_voiceLockSuspended, progress);
+
+    /// <summary>
+    /// The processing chain for these settings, exactly as the live MeetWise Microphone runs it. The "Record and compare" button uses the same
+    /// call, so what you hear there is what apps receive.
+    /// </summary>
+    /// <summary>What a set of options really does, in words, e.g. "voice lock + noise Max + echo cancellation".</summary>
+    public static string Describe(EnhancementOptions o, NoiseMode mode)
     {
-        var s = _settings!;
-        var manager = new ModelManager(_http);
-        if (s.VoiceIsolation && VoiceProfile.IsTrained())
+        var parts = new List<string>();
+        if (o.Kind == EnhancerKind.VoiceIsolation) parts.Add(Loc.T("cmp.voicelock"));
+        if (o.Kind is EnhancerKind.Light or EnhancerKind.FullBand || o.PostKind is not null) parts.Add(Loc.T("cmp.noise", Loc.T(mode switch { NoiseMode.Light => "noise.light", NoiseMode.Balanced => "noise.balanced", NoiseMode.Max => "noise.max", _ => "noise.off" })));
+        if (o.EchoCancellation) parts.Add(Loc.T("cmp.echo"));
+        return parts.Count == 0 ? Loc.T("cmp.nothing") : string.Join(" + ", parts);
+    }
+
+    /// <summary>What the live MeetWise Microphone applies right now (after any automatic downgrade).</summary>
+    public string Applied => _options is null ? "" : Describe(_options, _mode);
+
+    public static async Task<EnhancementOptions> OptionsForAsync(HttpClient http, AppSettings s, NoiseMode mode, bool voiceLock, IProgress<double>? progress)
+    {
+        var manager = new ModelManager(http);
+        string? noisePath = null;
+        var noiseKind = mode == NoiseMode.Light ? EnhancerKind.Light : EnhancerKind.FullBand;
+        if (mode != NoiseMode.Off)
         {
+            var model = mode switch
+            {
+                NoiseMode.Light => ModelCatalog.DenoiseLight,
+                NoiseMode.Balanced => ModelCatalog.DenoiseBalanced,
+                _ => ModelCatalog.DenoiseFullBand
+            };
+            await manager.EnsureAsync(model, progress);
+            noisePath = manager.PathFor(model);
+        }
+
+        if (voiceLock && VoiceProfile.IsTrained())
+        {
+            // Voice lock only keeps the enrolled voice; it does not remove steady noise. Before 2026-11-09 it replaced the noise model, so with
+            // voice lock on no noise cancellation ran at all. The chosen noise mode now always runs after it.
             await manager.EnsureAsync(ModelCatalog.VoiceIsolation, progress);
             return new EnhancementOptions(EnhancerKind.VoiceIsolation, null, s.EchoCancellation,
-                manager.PathFor(ModelCatalog.VoiceIsolation), VoiceProfile.ClipPath(), Threads: 2);
+                manager.PathFor(ModelCatalog.VoiceIsolation), VoiceProfile.ClipPath(),
+                Threads: Math.Clamp(Environment.ProcessorCount / 4, 2, 4), MinBlockMs: 80,
+                PostKind: noisePath is null ? null : noiseKind, PostModelPath: noisePath);
         }
-        if (_mode == NoiseMode.Off) return new EnhancementOptions(null, null, s.EchoCancellation);
-
-        var model = _mode switch
-        {
-            NoiseMode.Light => ModelCatalog.DenoiseLight,
-            NoiseMode.Balanced => ModelCatalog.DenoiseBalanced,
-            _ => ModelCatalog.DenoiseFullBand
-        };
-        await manager.EnsureAsync(model, progress);
-        var kind = _mode == NoiseMode.Light ? EnhancerKind.Light : EnhancerKind.FullBand;
-        return new EnhancementOptions(kind, manager.PathFor(model), s.EchoCancellation);
+        if (noisePath is null) return new EnhancementOptions(null, null, s.EchoCancellation);
+        return new EnhancementOptions(noiseKind, noisePath, s.EchoCancellation);
     }
 
     /// <summary>Builds a fresh route against whatever devices exist right now (called at start and after every device change).</summary>
@@ -115,6 +148,17 @@ public sealed class EnhancementController : IDisposable
         if (Interlocked.Exchange(ref _restarting, 1) == 1) return;
         try
         {
+            bool voiceLockOn = _settings is { VoiceIsolation: true } && !_voiceLockSuspended && VoiceProfile.IsTrained();
+            if (voiceLockOn && _mode is NoiseMode.Light or NoiseMode.Off)
+            {
+                // the noise stage is already as light as it gets: pause voice lock, the heaviest stage, for this session
+                AppLog.Warn("Voice lock is slower than real time on this PC; switching it off for this session (the saved setting is kept).");
+                _voiceLockSuspended = true;
+                _options = await BuildOptionsAsync(null);
+                _route?.DevicesChanged();
+                VoiceLockSuspended?.Invoke();
+                return;
+            }
             var next = _mode switch { NoiseMode.Max => NoiseMode.Balanced, NoiseMode.Balanced => NoiseMode.Light, _ => NoiseMode.Light };
             if (next == _mode) return; // already at the lightest model; nothing cheaper to switch to
             AppLog.Warn($"Enhancement overloaded in {_mode} mode; switching to {next}.");

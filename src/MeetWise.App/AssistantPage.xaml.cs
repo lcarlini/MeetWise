@@ -1,3 +1,4 @@
+using MeetWise.App.Try;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -37,6 +38,11 @@ public partial class AssistantPage : UserControl
     {
         InitializeComponent();
         _ctx = ctx;
+        AiTest.Setup(new QuickSpec
+        {
+            TitleKey = "quick.ai.title", HintKey = "quick.ai.hint", RunKey = "quick.ai.run",
+            Run = i => QuickRunners.AssistantSample(ctx, i)
+        });
         Chat.ItemsSource = _bubbles;
         _bubbles.CollectionChanged += (_, _) => EmptyText.Visibility = _bubbles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         Input.TextChanged += (_, _) => Placeholder.Visibility = Input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;

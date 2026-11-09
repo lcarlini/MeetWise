@@ -52,6 +52,28 @@ public class VideoTests
     }
 
     [Fact]
+    public async Task Mux_EmbedsSubtitleTrack_WhenSrtGiven()
+    {
+        var (ffmpeg, ffprobe) = await ToolsAsync();
+        var dir = Path.Combine(Path.GetTempPath(), "mw-vid-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var mkv = Path.Combine(dir, "v.mkv");
+        var (c, o) = await FFmpegPack.RunAsync(ffmpeg, $"-hide_banner -loglevel error -f lavfi -i testsrc=s=640x360:r=30 -t 3 -c:v libx264 -pix_fmt yuv420p \"{mkv}\"");
+        Assert.True(c == 0, o);
+        WriteTone(Path.Combine(dir, "m.wav"), 3, 440);
+        var srt = Path.Combine(dir, "s.srt");
+        File.WriteAllText(srt, "1\n00:00:00,000 --> 00:00:02,000\nHello there\n\n");
+
+        var t0 = DateTime.UtcNow;
+        var (mp4, notice) = await VideoRecorder.MuxAsync(ffmpeg, mkv, Path.Combine(dir, "m.wav"), null, t0, t0, Path.Combine(dir, "out.mp4"), srt, "en");
+
+        Assert.Null(notice);
+        var streams = (await ProbeAsync(ffprobe, mp4))["streams"]!.AsArray();
+        Assert.Contains(streams, s => s!["codec_type"]!.ToString() == "subtitle" && s["codec_name"]!.ToString() == "mov_text");
+        Assert.Contains(streams, s => s!["codec_type"]!.ToString() == "audio");
+    }
+
+    [Fact]
     public async Task Mux_FailsLoudly_AndKeepsTheMkv_WhenFfmpegFails()
     {
         var (ffmpeg, _) = await ToolsAsync();

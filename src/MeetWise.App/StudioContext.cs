@@ -66,10 +66,13 @@ public sealed class StudioContext
 
     private bool _gpuPackAsked;
 
+    /// <summary>Set by the headless benchmark so it never waits for a person to answer the GPU pack question.</summary>
+    public bool NeverAskGpuPack { get; set; }
+
     /// <summary>On NVIDIA cards, offers the 400 MB GPU acceleration pack once per session. Declining keeps everything working on the CPU.</summary>
     public async Task OfferGpuPackAsync(IProgress<string>? status = null)
     {
-        if (Hardware.Tier != HardwareTier.A_NvidiaRtx || CudaRuntimePack.IsInstalled() || _gpuPackAsked) return;
+        if (NeverAskGpuPack || Hardware.Tier != HardwareTier.A_NvidiaRtx || CudaRuntimePack.IsInstalled() || _gpuPackAsked) return;
         _gpuPackAsked = true;
         var ask = MessageBox.Show("Install the GPU acceleration pack (about 400 MB from NVIDIA)? Subtitles, imports and the local AI run several times faster on your graphics card. Choose No to use the CPU.",
             "MeetWise", MessageBoxButton.YesNo);

@@ -19,28 +19,28 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="14,10,14,16">
-                    <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="&#xE713;" GroupName="none" Click="Settings_Click" Margin="-6,0,-6,8">
+                    <RadioButton ToolTip="{local:T tip.nav.settings}" x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="&#xE713;" GroupName="none" Click="Settings_Click" Margin="-6,0,-6,8">
                         <TextBlock Text="{local:T nav.settings}"/>
                     </RadioButton>
                     <TextBlock Text="{local:T set.language}" Foreground="#FF7C8DCB" FontSize="11" Margin="4,0,0,4"/>
-                    <ComboBox x:Name="LanguageBox" DisplayMemberPath="Text" SelectedValuePath="Value" SelectionChanged="Language_Changed"/>
+                    <ComboBox ToolTip="{local:T tip.nav.language}" x:Name="LanguageBox" DisplayMemberPath="Text" SelectedValuePath="Value" SelectionChanged="Language_Changed"/>
                     <TextBlock x:Name="HardwareText" Foreground="#FF7C8DCB" FontSize="11" TextWrapping="Wrap" Margin="4,12,0,0"/>
                 </StackPanel>
 
                 <StackPanel>
-                    <RadioButton x:Name="NavRecord" Style="{StaticResource NavButton}" Tag="&#xE714;" GroupName="nav" IsChecked="True" Click="Nav_Click" CommandParameter="record">
+                    <RadioButton ToolTip="{local:T tip.nav.record}" x:Name="NavRecord" Style="{StaticResource NavButton}" Tag="&#xE714;" GroupName="nav" IsChecked="True" Click="Nav_Click" CommandParameter="record">
                         <TextBlock Text="{local:T nav.record}"/>
                     </RadioButton>
-                    <RadioButton x:Name="NavSubtitles" Style="{StaticResource NavButton}" Tag="&#xE7F0;" GroupName="nav" Click="Nav_Click" CommandParameter="subtitles">
+                    <RadioButton ToolTip="{local:T tip.nav.subtitles}" x:Name="NavSubtitles" Style="{StaticResource NavButton}" Tag="&#xE7F0;" GroupName="nav" Click="Nav_Click" CommandParameter="subtitles">
                         <TextBlock Text="{local:T nav.subtitles}"/>
                     </RadioButton>
-                    <RadioButton x:Name="NavAssistant" Style="{StaticResource NavButton}" Tag="&#xE99A;" GroupName="nav" Click="Nav_Click" CommandParameter="assistant">
+                    <RadioButton ToolTip="{local:T tip.nav.assistant}" x:Name="NavAssistant" Style="{StaticResource NavButton}" Tag="&#xE99A;" GroupName="nav" Click="Nav_Click" CommandParameter="assistant">
                         <TextBlock Text="{local:T nav.assistant}"/>
                     </RadioButton>
-                    <RadioButton x:Name="NavLibrary" Style="{StaticResource NavButton}" Tag="&#xE8F1;" GroupName="nav" Click="Nav_Click" CommandParameter="library">
+                    <RadioButton ToolTip="{local:T tip.nav.library}" x:Name="NavLibrary" Style="{StaticResource NavButton}" Tag="&#xE8F1;" GroupName="nav" Click="Nav_Click" CommandParameter="library">
                         <TextBlock Text="{local:T nav.library}"/>
                     </RadioButton>
-                    <RadioButton x:Name="NavMeetings" Style="{StaticResource NavButton}" Tag="&#xE716;" GroupName="nav" Click="Nav_Click" CommandParameter="meetings">
+                    <RadioButton ToolTip="{local:T tip.nav.meetings}" x:Name="NavMeetings" Style="{StaticResource NavButton}" Tag="&#xE716;" GroupName="nav" Click="Nav_Click" CommandParameter="meetings">
                         <TextBlock Text="{local:T nav.meetings}"/>
                     </RadioButton>
                 </StackPanel>

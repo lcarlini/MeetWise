@@ -72,7 +72,7 @@ public partial class VoiceProfileWindow : Window
 
     private void ShowPrompt()
     {
-        StepText.Text = $"Sentence {_index + 1} of {VoiceTrainer.Prompts.Length}";
+        StepText.Text = Loc.T("voice.step", _index + 1, VoiceTrainer.Prompts.Length);
         PromptText.Text = VoiceTrainer.Prompts[_index];
     }
 
@@ -94,7 +94,7 @@ public partial class VoiceProfileWindow : Window
                 _recorder = new ClipRecorder(_settings.MicrophoneId, _settings.PhysicalMicId);
                 _recorder.Level += peak => Dispatcher.BeginInvoke(() => LevelBar.Value = peak);
                 _recorder.Start();
-                RecordButton.Content = "Stop";
+                RecordButton.Content = Loc.T("voice.stop");
                 ResultText.Text = "Listening… read the sentence, then press Stop.";
             }
             catch (Exception ex)
@@ -111,7 +111,7 @@ public partial class VoiceProfileWindow : Window
         _recorder = null;
         LevelBar.Value = 0;
         RecordButton.IsEnabled = false;
-        RecordButton.Content = "Start recording";
+        RecordButton.Content = Loc.T("voice.start");
         ResultText.Text = "Checking the recording…";
         try { await AcceptOrRejectAsync(samples); }
         finally { RecordButton.IsEnabled = true; }
@@ -203,7 +203,7 @@ public partial class VoiceProfileWindow : Window
             var raw = _testRaw;
             _testLocked = await Task.Run(() =>
             {
-                using var engine = new EnhancementEngine(16000, new EnhancementOptions(EnhancerKind.VoiceIsolation, null, false, voxDir, VoiceProfile.ClipPath(), 2));
+                using var engine = new EnhancementEngine(16000, new EnhancementOptions(EnhancerKind.VoiceIsolation, null, false, voxDir, VoiceProfile.ClipPath(), Math.Clamp(Environment.ProcessorCount / 4, 2, 4), MinBlockMs: 80));
                 var o = new List<float>();
                 for (int i = 0; i < raw.Length; i += 160) o.AddRange(engine.Process(raw.AsSpan(i, Math.Min(160, raw.Length - i)).ToArray()));
                 _testRate = engine.OutputSampleRate;

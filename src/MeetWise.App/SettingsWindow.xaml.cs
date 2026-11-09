@@ -10,6 +10,21 @@ public partial class SettingsWindow : Window
     private readonly AppSettings _settings;
     private readonly SecretStore _secrets;
 
+    /// <summary>Set by the main window so the translation test can use the AI engine.</summary>
+    public StudioContext? Studio
+    {
+        init
+        {
+            var ctx = value;
+            if (ctx is null) return;
+            TranslationTest.Setup(new MeetWise.App.Try.QuickSpec
+            {
+                TitleKey = "quick.tr.title", HintKey = "quick.tr.hint", ShowText = true, RunKey = "quick.tr.run",
+                Run = i => MeetWise.App.Try.QuickRunners.Translation(ctx, i, CaptionLangCombo.SelectedValue as string ?? SpeakLangCombo.SelectedValue as string ?? "en")
+            });
+        }
+    }
+
     public SettingsWindow(AppSettings settings, SecretStore secrets)
     {
         InitializeComponent();

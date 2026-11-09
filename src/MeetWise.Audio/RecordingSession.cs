@@ -10,7 +10,7 @@ using NAudio.Wave;
 
 namespace MeetWise.Audio;
 
-public enum CaptureMode { VideoAudio, AudioOnly, SubtitlesOnly }
+public enum CaptureMode { VideoAudio, AudioOnly, SubtitlesOnly, VideoAudioSubtitles }
 
 public sealed record RecordingOptions(
     CaptureMode Mode, MonitorInfo? Monitor, QualityPreset Quality, bool Microphone, bool SystemAudio, string MicrophoneId,
@@ -132,7 +132,7 @@ public sealed class RecordingSession : IDisposable
         // 3. video (before audio so the audio can be delayed to match; both start within a fraction of a second)
         _baseName = $"recording-{DateTime.Now:yyyyMMdd-HHmmss}";
         _mkv = null;
-        if (options.Mode == CaptureMode.VideoAudio)
+        if (options.Mode is CaptureMode.VideoAudio or CaptureMode.VideoAudioSubtitles)
         {
             Status?.Invoke("Preparing video…");
             _ffmpeg = await FFmpegPack.EnsureAsync(_http, new Progress<double>(p => Status?.Invoke($"Downloading FFmpeg… {p:P0}")), ct: ct);
@@ -243,13 +243,22 @@ public sealed class RecordingSession : IDisposable
 
         string? videoPath = null, notice = null;
         DateTime? videoStart = _video?.StartedUtc;
+        var cues = Cues;
+        double offset = SubtitleOffset(audioStart, videoStart);
         if (_video is not null)
         {
+            string? embedSrt = null;
             try
             {
                 await _video.StopAsync();
                 videoPath = Path.Combine(options.OutputFolder, _baseName + ".mp4");
-                await VideoRecorder.MuxAsync(_ffmpeg!, _mkv!, micWav, loopWav, _video.StartedUtc, audioStart, videoPath);
+                if (options.Mode == CaptureMode.VideoAudioSubtitles && cues.Count > 0)
+                {
+                    embedSrt = Path.Combine(Path.GetTempPath(), "mw-sub-" + Guid.NewGuid().ToString("N") + ".srt");
+                    await File.WriteAllTextAsync(embedSrt, SubtitleFormatter.ToSrt(cues, offset), new System.Text.UTF8Encoding(false));
+                }
+                var (_, subNotice) = await VideoRecorder.MuxAsync(_ffmpeg!, _mkv!, micWav, loopWav, _video.StartedUtc, audioStart, videoPath, embedSrt, options.SubtitleLanguage);
+                if (subNotice is not null) notice = subNotice;
             }
             catch (Exception ex)
             {
@@ -257,12 +266,14 @@ public sealed class RecordingSession : IDisposable
                 videoPath = _mkv; // the raw capture stays on disk
                 notice = $"The video could not be finalised ({ex.Message}). The raw capture was kept.";
             }
-            finally { _video.Dispose(); _video = null; }
+            finally
+            {
+                _video.Dispose(); _video = null;
+                if (embedSrt is not null) try { File.Delete(embedSrt); } catch (IOException) { }
+            }
         }
 
         // subtitle files sit next to the video (or the audio) and are shifted so they line up with it
-        var cues = Cues;
-        double offset = SubtitleOffset(audioStart, videoStart);
         var stem = Path.Combine(options.OutputFolder, _baseName!);
         var txt = stem + ".txt";
         string? srt = options.WriteSrt ? stem + ".srt" : null;

@@ -73,59 +73,220 @@
   .note { border-left: 3px solid var(--warn); background: var(--panel); padding: 14px 18px; border-radius: 8px; color: var(--muted); margin-top: 20px; }
   pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; font: 14px/1.5 Consolas, ui-monospace, monospace; }
   footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+
+  /* language switch */
+  .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .topbar .wrap { display: flex; align-items: center; gap: 18px; height: 52px; }
+  .topbar nav { display: flex; gap: 16px; overflow-x: auto; flex: 1; white-space: nowrap; scrollbar-width: none; }
+  .topbar nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .topbar nav a:hover { color: var(--text); }
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+  .lang button { all: unset; cursor: pointer; padding: 6px 14px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+  header.hero { padding-top: 72px; }
+  .shots { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 520px) { .shots { grid-template-columns: 1fr; } }
+  .shots figure { margin: 0; }
+  td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .legend td:first-child { white-space: normal; }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 12px; top: 8px; background: var(--panel); padding: 6px 10px; border-radius: 8px; z-index: 20; }
+
+  /* language switch */
+  .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .topbar .wrap { display: flex; align-items: center; gap: 18px; height: 52px; }
+  .topbar nav { display: flex; gap: 16px; overflow-x: auto; flex: 1; white-space: nowrap; scrollbar-width: none; }
+  .topbar nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .topbar nav a:hover { color: var(--text); }
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+  .lang button { all: unset; cursor: pointer; padding: 6px 14px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+  header.hero { padding-top: 72px; }
+  .shots { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 520px) { .shots { grid-template-columns: 1fr; } }
+  .shots figure { margin: 0; }
+  td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .legend td:first-child { white-space: normal; }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 12px; top: 8px; background: var(--panel); padding: 6px 10px; border-radius: 8px; z-index: 20; }
+
+  /* language switch */
+  .topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .topbar .wrap { display: flex; align-items: center; gap: 18px; height: 52px; }
+  .topbar nav { display: flex; gap: 16px; overflow-x: auto; flex: 1; white-space: nowrap; scrollbar-width: none; }
+  .topbar nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .topbar nav a:hover { color: var(--text); }
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+  .lang button { all: unset; cursor: pointer; padding: 6px 14px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+  header.hero { padding-top: 72px; }
+  .shots { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 640px) {
+    .shots { grid-template-columns: 1fr; }
+    table { display: block; overflow-x: auto; }
+    td:first-child { white-space: normal; }
+    .wrap { padding: 0 16px; }
+    .topbar .wrap { gap: 10px; }
+    pre { font-size: 12px; }
+  }
+  .shots figure { margin: 0; }
+  td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .legend td:first-child { white-space: normal; }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 12px; top: 8px; background: var(--panel); padding: 6px 10px; border-radius: 8px; z-index: 20; }
 </style>
 </head>
 <body>
 
+<a class="skip" href="#what" data-i18n="skip">Skip to content</a>
+<div class="topbar"><div class="wrap"><nav aria-label="Sections"><a href="#what" data-i18n="n001">What it does</a><a href="#try" data-i18n="n002">Try it yourself</a><a href="#numbers" data-i18n="n003">Measured</a><a href="#how" data-i18n="n004">How it works</a><a href="#screens" data-i18n="n005">Screenshots</a><a href="#start" data-i18n="n006">Get started</a><a href="#status" data-i18n="n007">Status</a></nav><div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="pt" aria-pressed="false">PT-BR</button></div></div></div>
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">Local-first · Windows 11 · No meeting bot</div>
+    <div class="eyebrow" data-i18n="t008">Local-first · Windows 11 · No meeting bot</div>
     <img class="app-icon" src="img/icon.png" alt="MeetWise icon" width="96" height="96">
     <h1>Meet<span>Wise</span></h1>
-    <p class="lead">An AI assistant for your meetings that runs on your own PC. It records what you hear and say, cleans up your microphone, transcribes live, and turns each meeting into notes, action items and answers. Everything works offline; a cloud API key is an optional upgrade.</p>
-    <div class="badges">
-      <span class="badge">.NET 10 · WPF</span>
-      <span class="badge">sherpa-onnx · Whisper · llama.cpp</span>
-      <span class="badge">NVIDIA CUDA 13 (optional)</span>
-      <span class="badge">SQLite + full-text search</span>
-      <span class="badge">474 automated tests</span>
-    </div>
-    <div class="cta">
-      <a class="btn primary" href="#how">See how it works</a>
-      <a class="btn" href="#screens">Screenshots</a>
-      <a class="btn" href="https://github.com/lcarlini/MeetWise">View on GitHub</a>
-    </div>
+    <p class="lead" data-i18n="t009">An AI assistant for your meetings that runs on your own PC. It records what you hear and say, cleans up your microphone, transcribes live, and turns each meeting into notes, action items and answers. Everything works offline; a cloud API key is an optional upgrade. And you can test every feature yourself: record a few seconds, listen to the original and the processed result, and read the numbers.</p>
+    <div class="badges"><span class="badge">.NET 10 · WPF</span><span class="badge">sherpa-onnx · Whisper · llama.cpp</span><span class="badge">NVIDIA CUDA 13 (<span data-i18n="t010">optional</span>)</span><span class="badge">SQLite + FTS</span><span class="badge"><span data-i18n="t011">495 automated tests</span></span></div>
+    <div class="cta"><a class="btn primary" href="#try" data-i18n="cta1">Try it yourself</a><a class="btn" href="#screens" data-i18n="cta2">Screenshots</a><a class="btn" href="https://github.com/lcarlini/MeetWise" data-i18n="cta3">View on GitHub</a></div>
   </div>
 </header>
 
 <section id="what">
   <div class="wrap">
-    <div class="eyebrow">What it does</div>
-    <h2>One place for everything a meeting produces</h2>
-    <p class="lead">Krisp-style audio clean-up, meeting intelligence and recording, combined in one app. Nothing leaves your machine unless you choose a cloud provider.</p>
+    <div class="eyebrow" data-i18n="t046">What it does</div>
+    <h2 data-i18n="t047">One place for everything a meeting produces</h2>
+    <p class="lead" data-i18n="t048">Krisp-style audio clean-up, meeting intelligence and recording, combined in one app. Nothing leaves your machine unless you choose a cloud provider.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🎞️</div><h3>Studio: record, subtitle, ask</h3><p>Record a monitor like RecBox while subtitles appear live in any language. When you stop, tick the lines you want and copy or save SRT, VTT or TXT. Then ask the AI to summarize, list action items, write chapters or translate.</p></div>
-      <div class="card"><div class="ico">📚</div><h3>Import and watch</h3><p>Import audio or video (track chosen by language, optional noise filter), paste a YouTube link, or let a watched folder subtitle everything you drop in it.</p></div>
-      <div class="card"><div class="ico">🎙️</div><h3>Bot-free capture</h3><p>Records your microphone and the system audio as two separate channels, so no bot joins the call and "me" and "others" are kept apart.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">📝</div><h3>Live transcript</h3><p>Streaming speech-to-text with partial results and timestamps, plus a Whisper "Refine" pass that runs on the GPU for higher accuracy in 99 languages.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🔇</div><h3>Noise, echo and voice isolation</h3><p>Three noise-suppression levels, adaptive echo cancellation, and a voice-isolation mode that keeps only the voice you enrolled.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🧠</div><h3>Meeting intelligence</h3><p>Notes, decisions, risks and action items with owners and dates. Ask questions across all meetings and get answers with timestamp citations.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🗓️</div><h3>Pre-meeting briefs</h3><p>Reads any iCal calendar, reminds you before meetings, offers to record when Zoom, Teams or Meet starts, and prepares a brief from earlier meetings in the same series.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🌍</div><h3>Live translation</h3><p>Shows other people's speech as captions in your language, and can speak your sentences translated into a chosen device.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🎬</div><h3>Audio + video</h3><p>Screen recording with NVENC, Quick Sync, AMD AMF or x264 (picked automatically), joined into one MP4 with both audio channels.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🔌</div><h3>MeetWise Microphone</h3><p>One click creates a real microphone in Windows Sound settings. Set it as your default and every app (Zoom, Teams, Meet, Discord) hears your cleaned voice. Powered by the signed VB-CABLE driver.</p><span class="tag ok">One click, one Windows prompt</span></div>
-      <div class="card"><div class="ico">🔐</div><h3>Voice lock</h3><p>Read six sentences and MeetWise learns your voice, then passes only you and removes other people. Measured: a second speaker is cut by 19 to 47 dB while your voice passes at the same level.</p><span class="tag ok">Working</span></div>
-      <div class="card"><div class="ico">🗣️</div><h3>English coach</h3><p>While you speak English, a small floating window shows your sentence with the mistake struck through and the fix highlighted. Only you see it. On a test set it caught 15 of 15 mistakes with 0 false alarms.</p><span class="tag ok">Working</span></div>
+      <div class="card"><div class="ico">🎞️</div><h3 data-i18n="t012">Studio: record, subtitle, ask</h3><p data-i18n="t013">Record a monitor while subtitles appear live in any language. Save video + audio + subtitles in one MP4 (the subtitles are a track you can switch on and off, and an .srt is saved beside it), video + audio, audio only, or only the text. Then ask the AI to summarise, list action items, write chapters or translate.</p></div>
+      <div class="card"><div class="ico">🧪</div><h3 data-i18n="t015">Test every feature yourself</h3><p data-i18n="t016">Every page has a “Try it yourself” panel: record a clip (or open a file), run the feature on it, play the original and the result, and read quality and speed numbers. Save results to a report to compare runs over time.</p><span class="tag ok" data-i18n="t014">New</span></div>
+      <div class="card"><div class="ico">💬</div><h3 data-i18n="t018">Tooltips everywhere</h3><p data-i18n="t019">Hover any control to learn what it does and what the trade-off is. About 140 tooltips, in English, Portuguese and Spanish.</p><span class="tag ok" data-i18n="t017">New</span></div>
+      <div class="card"><div class="ico">📚</div><h3 data-i18n="t020">Import and watch</h3><p data-i18n="t021">Import audio or video (track chosen by language, optional noise filter), paste a YouTube link, or let a watched folder subtitle everything you drop in it.</p></div>
+      <div class="card"><div class="ico">🎙️</div><h3 data-i18n="t023">Bot-free capture</h3><p data-i18n="t024">Records your microphone and the system audio as two separate channels, so no bot joins the call and “me” and “others” are kept apart.</p><span class="tag ok" data-i18n="t022">Working</span></div>
+      <div class="card"><div class="ico">📝</div><h3 data-i18n="t026">Live transcript</h3><p data-i18n="t027">Streaming speech-to-text with partial results and timestamps, plus a Whisper “Refine” pass that runs on the GPU for higher accuracy in 99 languages.</p><span class="tag ok" data-i18n="t025">Working</span></div>
+      <div class="card"><div class="ico">🔇</div><h3 data-i18n="t029">Noise, echo and voice lock</h3><p data-i18n="t030">Three noise-suppression levels, adaptive echo cancellation, and a voice lock that keeps only the voice you enrolled. Voice lock needs about 45 % of one real-time budget here; if a PC cannot keep up, MeetWise pauses it by itself and tells you.</p><span class="tag ok" data-i18n="t028">Working</span></div>
+      <div class="card"><div class="ico">🧠</div><h3 data-i18n="t032">Meeting intelligence</h3><p data-i18n="t033">Notes, decisions, risks and action items with owners and dates. Ask questions across all meetings and get answers with timestamp citations.</p><span class="tag ok" data-i18n="t031">Working</span></div>
+      <div class="card"><div class="ico">🗓️</div><h3 data-i18n="t035">Pre-meeting briefs</h3><p data-i18n="t036">Reads any iCal calendar, reminds you before meetings, offers to record when Zoom, Teams or Meet start, and prepares a brief from earlier meetings in the same series.</p><span class="tag ok" data-i18n="t034">Working</span></div>
+      <div class="card"><div class="ico">🌍</div><h3 data-i18n="t038">Live translation</h3><p data-i18n="t039">Shows other people’s speech as captions in your language, and can speak your sentences translated into a chosen device.</p><span class="tag ok" data-i18n="t037">Working</span></div>
+      <div class="card"><div class="ico">🔌</div><h3 data-i18n="t041">MeetWise Microphone</h3><p data-i18n="t042">One click creates a real microphone in Windows Sound settings. Set it as your default and every app (Zoom, Teams, Meet, Discord) hears your cleaned voice. Powered by the signed VB-CABLE driver. Closing the window sends MeetWise to the tray; starting it again brings the window back (it never starts twice).</p><span class="tag ok" data-i18n="t040">One click, one Windows prompt</span></div>
+      <div class="card"><div class="ico">🗣️</div><h3 data-i18n="t044">English coach</h3><p data-i18n="t045">While you speak English, a small floating window shows your sentence with the mistake struck through and the fix highlighted. Only you see it. On a test set it caught 15 of 15 mistakes with 0 false alarms.</p><span class="tag ok" data-i18n="t043">Working</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="t100">Test it yourself</div>
+    <h2 data-i18n="t101">Record a few seconds, then compare</h2>
+    <p class="lead" data-i18n="t102">Like the commercial apps, MeetWise lets you judge the quality with your own ears and your own voice, feature by feature, on your own PC. The numbers below the buttons tell you what your ears may miss.</p>
+<h3 data-i18n="t090">How to use it</h3>
+    <ol>
+    <li data-i18n="t091">Open any page and expand <b>Try it yourself</b>.</li>
+    <li data-i18n="t092">Press <b>Record</b> and talk for 5 to 30 seconds (it records your real microphone, never the MeetWise Microphone), or <b>Open a file</b>. Tick “also record what the PC plays” and play a video to test echo cancellation.</li>
+    <li data-i18n="t093">Pick a test and press <b>Run test</b>. Models are prepared on first use. Press ▶ on any row to hear it.</li>
+    <li data-i18n="t094"><b>Save result to report</b> adds the rows to <code>results.csv</code> in <code>%AppData%\MeetWise\try</code>, so you can compare runs over time or between versions. The last clip is shared by every panel and kept for next time.</li>
+    </ol>
+    <table class="legend">
+      <thead><tr><th data-i18n="t049">Test</th><th data-i18n="t050">Where</th><th data-i18n="t051">What you get</th></tr></thead>
+      <tbody>
+      <tr><td data-i18n="t052">Microphone clean-up</td><td data-i18n="t053">Meetings, Record</td><td data-i18n="t054">Your clip through Light, Balanced and Max noise cancellation, echo cancellation and voice lock. A ▶ button plays each result. Numbers: how much quieter the background got, whether your voice stayed at the same level, the clarity (voice above background) before and after, and how much of real time the processing uses.</td></tr>
+      <tr><td data-i18n="t055">Noise cancellation</td><td data-i18n="t056">Library</td><td data-i18n="t057">The same three levels, to preview what “Noise filter” will do to a file before you import it.</td></tr>
+      <tr><td data-i18n="t058">Subtitles: live engine vs Whisper</td><td data-i18n="t059">Record, Library</td><td data-i18n="t060">The text from the live subtitle engine, from Whisper, and from Whisper after clean-up, each with the time it took. Type what you said and it counts the word errors.</td></tr>
+      <tr><td data-i18n="t061">Who is speaking</td><td data-i18n="t062">Meetings</td><td data-i18n="t063">Speaker turns found in the clip, with time ranges, and the name of any voice you enrolled.</td></tr>
+      <tr><td data-i18n="t064">Translation and spoken translation</td><td data-i18n="t065">Meetings, AI Assistant</td><td data-i18n="t066">What you said (or typed) translated into the language you pick, the time it took, any warning (numbers, days of the week), and a ▶ button to hear it in a Windows voice.</td></tr>
+      <tr><td data-i18n="t067">English coach</td><td data-i18n="t068">Meetings</td><td data-i18n="t069">Your English sentence, typed or spoken, with the corrections and the reason for each.</td></tr>
+      <tr><td data-i18n="t070">AI assistant on a sample meeting</td><td data-i18n="t071">AI Assistant</td><td data-i18n="t072">Summary, action items and chapters of a built-in sample meeting, each with its time, to judge the AI and its speed without recording anything.</td></tr>
+      <tr><td data-i18n="t073">Video encoders on this PC</td><td data-i18n="t074">Record</td><td data-i18n="t075">The encoders your PC offers (NVIDIA, AMD, Intel or CPU) and the one MeetWise uses.</td></tr>
+      </tbody>
+    </table>
+    <div class="shots">
+      <figure>
+      <img src="img/try-cleanup.png" data-img="try-cleanup" alt="Try it panel on the Meetings page showing the microphone clean-up test with original, Light, Balanced and Max results" data-i18n-alt="a076" loading="lazy">
+      <figcaption data-i18n="t077">Microphone clean-up: Original, Light, Balanced, Max and voice lock, each with a play button and numbers.</figcaption>
+    </figure>
+      <figure>
+      <img src="img/try-transcribe.png" data-img="try-transcribe" alt="Try it panel on the Record page comparing the live subtitle engine with Whisper" data-i18n-alt="a078" loading="lazy">
+      <figcaption data-i18n="t079">Subtitles: live engine against Whisper, with the time each took and the word error rate.</figcaption>
+    </figure>
+      <figure>
+      <img src="img/try-speakers.png" data-img="try-speakers" alt="Try it panel showing the speaker turns found in a clip" data-i18n-alt="a080" loading="lazy">
+      <figcaption data-i18n="t081">Who is speaking: the turns found in the clip.</figcaption>
+    </figure>
+      <figure>
+      <img src="img/try-encoders.png" data-img="try-encoders" alt="Try it panel listing the video encoders available on this PC" data-i18n-alt="a082" loading="lazy">
+      <figcaption data-i18n="t083">Video encoders: what the PC offers and which one MeetWise uses.</figcaption>
+    </figure>
+    </div>
+    <div class="shots">
+      <figure>
+      <img src="img/try-translate.png" data-img="try-translate" alt="Try it panel with a translation, its time and a play button for the spoken translation" data-i18n-alt="a084" loading="lazy">
+      <figcaption data-i18n="t085">Translation and spoken translation, with the time it took.</figcaption>
+    </figure>
+      <figure>
+      <img src="img/try-coach.png" data-img="try-coach" alt="Try it panel showing the English coach correcting a sentence" data-i18n-alt="a086" loading="lazy">
+      <figcaption data-i18n="t087">English coach: the corrected sentence and the reason for each fix.</figcaption>
+    </figure>
+      <figure>
+      <img src="img/try-assistant.png" data-img="try-assistant" alt="Try it panel on the AI Assistant page running summary, action items and chapters on a sample meeting" data-i18n-alt="a088" loading="lazy">
+      <figcaption data-i18n="t089">AI assistant on a sample meeting: summary, action items and chapters, each timed.</figcaption>
+    </figure>
+    </div>
+    <figure>
+      <img src="img/tooltip.png" data-img="tooltip" alt="Tooltip on the Voice lock option explaining what it does and its cost" data-i18n-alt="a095" loading="lazy">
+      <figcaption data-i18n="t096">Hover any control for a tooltip: what it does, when to use it, and the trade-off.</figcaption>
+    </figure>
+    <h3 style="margin-top:36px" data-i18n="t097">Headless benchmark</h3>
+    <p data-i18n="t098">The same code runs from the command line and writes a Markdown report. Without a clip it speaks three sentences with a Windows voice and adds hum and hiss, so the true text is known and word errors can be counted.</p>
+    <pre><code>MeetWise.App.exe --benchmark [clip.wav] [--quick] [--tune] [--out report.md]</code></pre>
+    <p data-i18n="t099"><code>--quick</code> skips the tests that need the AI language model; <code>--tune</code> measures how many threads and how large a block voice lock needs on this PC.</p>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="t127">Measured</div>
+    <h2 data-i18n="t128">Quality and speed, with numbers</h2>
+    <p class="lead" data-i18n="t129">Produced by the same code as the Try panels (<code>--benchmark</code>), so you can repeat them. Two things this found and fixed: voice lock ran at 301 % of real time and Whisper ran on the CPU path inside the test bench.</p>
+
+    <div class="two">
+      <div class="card">
+        <h3 data-i18n="t103">Microphone clean-up</h3>
+        <p data-i18n="t104">Test clip: three spoken sentences, a 50 Hz hum and hiss mixed in (background about 33 dB below the voice’s loudest parts). Measured with the Try panel’s own numbers, on an RTX 4070 Laptop.</p>
+        <table>
+          <thead><tr><th data-i18n="t105">Mode</th><th class="num" data-i18n="t106">Background</th><th class="num" data-i18n="t107">Voice change</th><th class="num" data-i18n="t108">Clarity</th><th class="num" data-i18n="t109">Real time used</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="t110">Original</td><td class="num">−33.4 dB</td><td class="num">—</td><td class="num">6 dB</td><td class="num">—</td></tr>
+            <tr><td data-i18n="t111">Light</td><td class="num">−44.0 dB</td><td class="num">−2.5 dB</td><td class="num">48 dB</td><td class="num">6 %</td></tr>
+            <tr><td data-i18n="t112">Balanced</td><td class="num">−62.3 dB</td><td class="num">−1.8 dB</td><td class="num">67 dB</td><td class="num">17 %</td></tr>
+            <tr><td data-i18n="t113">Max</td><td class="num">−71.6 dB</td><td class="num">−1.7 dB</td><td class="num">76 dB</td><td class="num">34 %</td></tr>
+            <tr><td data-i18n="t114">Voice lock (before the fix: 301 %)</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">43 %</td></tr>
+          </tbody>
+        </table>
+        <p data-i18n="t115">Lower background is better; the voice should stay near 0 dB; real time used must stay below 100 % to run live. Voice lock was 3 times too slow until its input was gathered into 80 ms blocks (its model costs about 30 ms per call whatever the block size). It is now at 43 %, and the clip is not the enrolled voice, which is why it removes the speech here.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="t116">Subtitles, speakers, video</h3>
+        <p data-i18n="t117">Same clip, 16.3 s long, known text. Word errors count substitutions, insertions and deletions against what was spoken.</p>
+        <table>
+          <thead><tr><th data-i18n="t118">Test</th><th class="num" data-i18n="t119">Time</th><th class="num" data-i18n="t120">Word errors</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="t121">Live subtitle engine (English)</td><td class="num">4.7 s</td><td class="num">24 %</td></tr>
+            <tr><td data-i18n="t122">Whisper on the GPU (was 16.7 s on the CPU path)</td><td class="num">0.6 s</td><td class="num">3 %</td></tr>
+            <tr><td data-i18n="t123">Whisper after Balanced clean-up</td><td class="num">0.5 s</td><td class="num">3 %</td></tr>
+            <tr><td data-i18n="t124">Speaker turns (2 speakers found in a 1-voice clip)</td><td class="num">2.4 s</td><td class="num">—</td></tr>
+            <tr><td data-i18n="t125">Video encoders: NVIDIA NVENC chosen, AMD AMF and x264 also found</td><td class="num">0.8 s</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+        <p data-i18n="t126">This is one synthetic clip on one PC. Your voice, room and microphone will give different numbers, which is exactly why the Try panels exist. The live engine trades accuracy for speed: Whisper is what the “Refine” button uses.</p>
+      </div>
     </div>
   </div>
 </section>
 
 <section id="how">
   <div class="wrap">
-    <div class="eyebrow">How it works</div>
-    <h2>From your microphone to meeting notes</h2>
-    <p class="lead">Audio is processed in small blocks, so nothing waits for a whole meeting to finish. Heavy work (the high-accuracy transcript, speaker naming, notes) runs after the meeting, one model at a time.</p>
-
+    <div class="eyebrow" data-i18n="t139">How it works</div>
+    <h2 data-i18n="t140">From your microphone to meeting notes</h2>
+    <p class="lead" data-i18n="t141">Audio is processed in small blocks, so nothing waits for a whole meeting to finish. Heavy work (the high-accuracy transcript, speaker naming, notes) runs after the meeting, one model at a time, so a laptop GPU is never overloaded.</p>
     <figure>
       <svg viewBox="0 0 1000 420" role="img" aria-label="Architecture diagram">
         <defs>
@@ -163,159 +324,182 @@
         </g>
         <text x="500" y="410" text-anchor="middle" fill="#9aa6c7" font-size="13" font-family="Segoe UI, sans-serif">Everything above runs on this PC. Only model downloads and the calendar or LLM endpoints you configure touch the network.</text>
       </svg>
-      <figcaption>Data flow: two channels, enhanced and transcribed live, saved to disk as they arrive, then refined and analysed.</figcaption>
+      <figcaption data-i18n="t138">Data flow: two channels, enhanced and transcribed live, saved to disk as they arrive, then refined and analysed.</figcaption>
     </figure>
 
     <div class="flow">
-      <div class="step"><h3>Capture</h3><p>Two WASAPI streams: your mic and the loopback of what your PC plays. Recording survives device changes and sleep.</p></div>
-      <div class="step"><h3>Enhance</h3><p>Echo cancellation, then noise suppression or voice isolation in 10 ms blocks, real-time factor 0.06 to 0.29 on the dev machine.</p></div>
-      <div class="step"><h3>Transcribe</h3><p>Streaming recognisers, one per channel, run on worker threads so audio capture is never blocked.</p></div>
-      <div class="step"><h3>Refine & analyse</h3><p>Whisper re-transcribes each channel, the speakers are labelled, and the local LLM writes notes and action items.</p></div>
+      <div class="step"><h3 data-i18n="t130">Capture</h3><p data-i18n="t131">Two WASAPI streams: your mic and the loopback of what your PC plays. Recording survives device changes and sleep.</p></div>
+      <div class="step"><h3 data-i18n="t132">Enhance</h3><p data-i18n="t133">Echo cancellation, then noise suppression or voice lock. Voice lock gathers 80 ms of audio per call because its model has a fixed cost per call; the other modes use 10 to 20 ms blocks and 6 to 34 % of real time.</p></div>
+      <div class="step"><h3 data-i18n="t134">Transcribe</h3><p data-i18n="t135">Streaming recognisers, one per channel, run on worker threads so audio capture is never blocked.</p></div>
+      <div class="step"><h3 data-i18n="t136">Refine &amp; analyse</h3><p data-i18n="t137">Whisper re-transcribes each channel on the GPU, the speakers are labelled, and the local LLM writes notes and action items.</p></div>
     </div>
   </div>
 </section>
 
 <section id="audio-translation">
   <div class="wrap">
-    <div class="eyebrow">Echo and translation</div>
-    <h2>Two things that must never get in the way of a call</h2>
-    <p class="lead">Both run beside the microphone and the transcript, never inside them: an echo canceller that follows the real delay of your speakers, and live translation that sheds load instead of falling behind. Both are covered by automated tests (about 190 of them), including the real local model and the real Windows voice.</p>
-
+    <div class="eyebrow" data-i18n="t168">Echo and translation</div>
+    <h2 data-i18n="t169">Two things that must never get in the way of a call</h2>
+    <p class="lead" data-i18n="t170">Both run beside the microphone and the transcript, never inside them: an echo canceller that follows the real delay of your speakers, and live translation that sheds load instead of falling behind. Both are covered by automated tests, including the real local model and the real Windows voice.</p>
     <div class="two">
       <div class="card">
-        <h3>Echo cancellation</h3>
-        <p>The speaker feed is lined up with the microphone by measuring the delay (20 to 400 ms is normal), an adaptive filter subtracts the echo, and what is left is lowered only when it is no louder than the echo itself. Nothing adapts without evidence of an echo, so headphones leave your voice alone. It stays out of the way: a muted microphone stays silent, a failed loopback restarts by itself, and it adds no latency.</p>
+        <h3 data-i18n="t142">Echo cancellation</h3>
+        <p data-i18n="t143">The speaker feed is lined up with the microphone by measuring the delay (20 to 400 ms is normal), an adaptive filter subtracts the echo, and what is left is lowered only when it is no louder than the echo itself. Nothing adapts without evidence of an echo, so headphones leave your voice alone. A muted microphone stays silent, a failed loopback restarts by itself, and it adds no latency. You can check it on your own PC with the echo test in the Try panel.</p>
         <table>
-          <tr><th>Reference ahead of the microphone</th><th>0 to 400 ms</th></tr>
-          <tr><td>Echo removed (before: 8.0 dB at 100 ms, 1.3 dB at 400 ms)</td><td>36 to 38 dB</td></tr>
-          <tr><td>After you move the speaker</td><td>43.7 dB (before: 4.0 dB)</td></tr>
-          <tr><td>Your voice while the other side talks</td><td>level kept within 0.1 dB</td></tr>
-          <tr><td>Cost of a 10 ms block (16 / 48 kHz)</td><td>about 0.8 % / 2.5 % of real time</td></tr>
+          <tr><th data-i18n="t144">Reference ahead of the microphone</th><th data-i18n="t145">0 to 400 ms</th></tr>
+          <tr><td data-i18n="t146">Echo removed (before: 8.0 dB at 100 ms, 1.3 dB at 400 ms)</td><td>36 to 38 dB</td></tr>
+          <tr><td data-i18n="t147">After you move the speaker (before)</td><td>43.7 dB (4.0 dB)</td></tr>
+          <tr><td data-i18n="t148">Your voice while the other side talks</td><td data-i18n="t149">level kept within 0.1 dB</td></tr>
+          <tr><td data-i18n="t150">Cost of a 10 ms block (16 / 48 kHz)</td><td data-i18n="t151">about 0.8 % / 2.5 % of real time</td></tr>
         </table>
-        <p><span class="tag ok">synthetic signals, real recorded speech</span> <span class="tag todo">real rooms and Bluetooth speakers not tested</span></p>
+        <p><span class="tag ok" data-i18n="t152">synthetic signals, real recorded speech</span> <span class="tag todo" data-i18n="t153">real rooms and Bluetooth speakers not tested</span></p>
       </div>
       <div class="card">
-        <h3>Live translation</h3>
-        <p>Captions of what other people say in your language, and your own sentences translated and spoken into a virtual microphone. Fragments become sentences; one worker per direction keeps the order; if the model falls behind, old sentences are skipped and you are told. If a translation fails you still see what was said, with the reason. It checks that numbers, questions and the days of the week survived (the local model once turned Friday into Thursday), and it will not hear its own translated voice and translate it again.</p>
+        <h3 data-i18n="t154">Live translation</h3>
+        <p data-i18n="t155">Captions of what other people say in your language, and your own sentences translated and spoken into a virtual microphone. Fragments become sentences; one worker per direction keeps the order; if the model falls behind, old sentences are skipped and you are told. If a translation fails you still see what was said, with the reason. It checks that numbers, questions and the days of the week survived (the local model once turned Friday into Thursday), and it will not hear its own translated voice and translate it again. The translation test in the Try panel shows the time and the warnings for any sentence.</p>
         <table>
-          <tr><th>Local Qwen3-8B, RTX 4070 Laptop</th><th></th></tr>
-          <tr><td>One sentence (en, pt, es, all directions)</td><td>0.6 s median</td></tr>
-          <tr><td>Speech end to caption on screen</td><td>0.49 s median, 1.06 s at the 95th percentile</td></tr>
-          <tr><td>Speech end to translated audio ready</td><td>0.41 s median</td></tr>
-          <tr><td>Time the audio and the UI wait for the model</td><td>none</td></tr>
+          <tr><th data-i18n="t156">Local Qwen3-8B, RTX 4070 Laptop</th><td></td></tr>
+          <tr><td data-i18n="t157">One sentence (en, pt, es, all directions)</td><td data-i18n="t158">0.6 s median</td></tr>
+          <tr><td data-i18n="t159">Speech end to caption on screen</td><td data-i18n="t160">0.49 s median, 1.06 s at the 95th percentile</td></tr>
+          <tr><td data-i18n="t161">Speech end to translated audio ready</td><td data-i18n="t162">0.41 s median</td></tr>
+          <tr><td data-i18n="t163">Time the audio and the UI wait for the model</td><td data-i18n="t164">none</td></tr>
         </table>
-        <p><span class="tag ok">local by default</span> <span class="tag ok">cloud only if you choose it</span> <span class="tag todo">Windows voices only for installed languages</span></p>
+        <p><span class="tag ok" data-i18n="t165">local by default</span> <span class="tag ok" data-i18n="t166">cloud only if you choose it</span> <span class="tag todo" data-i18n="t167">Windows voices only for installed languages</span></p>
       </div>
     </div>
-    <p style="margin-top:22px"><a class="btn" href="https://github.com/lcarlini/MeetWise#echo-cancellation">How echo cancellation works</a>
-       <a class="btn" href="https://github.com/lcarlini/MeetWise#live-translation">How live translation works</a>
-       <a class="btn" href="https://github.com/lcarlini/MeetWise/blob/main/docs/AUDIT-echo-and-translation.md">The audit: what was found and fixed</a></p>
+    <p style="margin-top:22px"><a class="btn" href="https://github.com/lcarlini/MeetWise#echo-cancellation" data-i18n="l1">How echo cancellation works</a>
+       <a class="btn" href="https://github.com/lcarlini/MeetWise#live-translation" data-i18n="l2">How live translation works</a>
+       <a class="btn" href="https://github.com/lcarlini/MeetWise/blob/main/docs/AUDIT-echo-and-translation.md" data-i18n="l3">The audit: what was found and fixed</a></p>
   </div>
 </section>
 
 <section id="screens">
   <div class="wrap">
-    <div class="eyebrow">Screenshots</div>
-    <h2>The app</h2>
-    <p class="lead">The Studio has five pages: Record, Subtitles, AI Assistant, Library and Meetings. These are real screenshots from the development build on an RTX 4070 Laptop.</p>
+    <div class="eyebrow" data-i18n="t183">Screenshots</div>
+    <h2 data-i18n="t184">The app</h2>
+    <p class="lead" data-i18n="t185">The Studio has five pages: Record, Subtitles, AI Assistant, Library and Meetings. These are real screenshots of the build on an RTX 4070 Laptop, in the language you chose above.</p>
     <figure>
-      <img src="img/studio-record.png" alt="Record page with monitor, microphone and quality choices, the record button and live subtitles" loading="lazy">
-      <figcaption>Record: pick the screen and quality, press Record (or Ctrl+Shift+R), and watch subtitles appear while you speak.</figcaption>
-    </figure>
-    <figure>
-      <img src="img/studio-subtitles.png" alt="Subtitles page with selectable lines and copy and save buttons" loading="lazy">
-      <figcaption>Subtitles: tick the lines you want, copy them or save SRT, VTT or TXT.</figcaption>
-    </figure>
-    <figure>
-      <img src="img/studio-assistant.png" alt="AI Assistant page with command buttons and a chapters reply" loading="lazy">
-      <figcaption>AI Assistant: one-click commands or free text, answered by a local model (here Qwen3-8B on the GPU).</figcaption>
-    </figure>
-    <figure>
-      <img src="img/studio-library.png" alt="Library page with recordings, imports, YouTube and watch folder" loading="lazy">
-      <figcaption>Library: search every transcript, import files or YouTube, watch a folder.</figcaption>
-    </figure>
-    <figure>
-      <img src="img/studio-meetings.png" alt="Meetings page with MeetWise Microphone and meeting notes" loading="lazy">
-      <figcaption>Meetings: MeetWise Microphone, voice lock, English coach, notes and questions.</figcaption>
-    </figure>
-    <figure>
-      <img src="img/voice-training.png" alt="Voice training window showing sentence 1 of 6 to read aloud" loading="lazy">
-      <figcaption>Voice training: six sentences, each checked for enough speech, no distortion, a quiet room, and that only you are speaking.</figcaption>
+      <img src="img/studio-record.png" data-img="studio-record" alt="Record page with monitor, microphone and quality choices, the record button and live subtitles" data-i18n-alt="a171" loading="lazy">
+      <figcaption data-i18n="t172">Record: pick the screen, what to save (video + audio + subtitles, video + audio, audio only, or text only) and the quality, then press Record (or Ctrl+Shift+R).</figcaption>
+    </figure><figure>
+      <img src="img/studio-subtitles.png" data-img="studio-subtitles" alt="Subtitles page with selectable lines and copy and save buttons" data-i18n-alt="a173" loading="lazy">
+      <figcaption data-i18n="t174">Subtitles: tick the lines you want, copy them or save SRT, VTT or TXT.</figcaption>
+    </figure><figure>
+      <img src="img/studio-assistant.png" data-img="studio-assistant" alt="AI Assistant page with command buttons and a reply" data-i18n-alt="a175" loading="lazy">
+      <figcaption data-i18n="t176">AI Assistant: one-click commands or free text, answered by a local model (here Qwen3-8B on the GPU).</figcaption>
+    </figure><figure>
+      <img src="img/studio-library.png" data-img="studio-library" alt="Library page with recordings, imports, YouTube and watch folder" data-i18n-alt="a177" loading="lazy">
+      <figcaption data-i18n="t178">Library: search every transcript, import files or YouTube, watch a folder.</figcaption>
+    </figure><figure>
+      <img src="img/studio-meetings.png" data-img="studio-meetings" alt="Meetings page with MeetWise Microphone, the Try it yourself panel and meeting notes" data-i18n-alt="a179" loading="lazy">
+      <figcaption data-i18n="t180">Meetings: MeetWise Microphone, voice lock, English coach, the test panel, notes and questions.</figcaption>
+    </figure><figure>
+      <img src="img/voice-training.png" data-img="voice-training" alt="Voice training window showing sentence 1 of 6 to read aloud" data-i18n-alt="a181" loading="lazy">
+      <figcaption data-i18n="t182">Voice training: six sentences, each checked for enough speech, no distortion, a quiet room, and that only you are speaking. The same window tests your voice lock.</figcaption>
     </figure>
   </div>
 </section>
 
 <section id="privacy">
   <div class="wrap">
-    <div class="eyebrow">Privacy and cloud</div>
-    <h2>Local first, cloud optional</h2>
+    <div class="eyebrow" data-i18n="t191">Privacy and cloud</div>
+    <h2 data-i18n="t192">Local first, cloud optional</h2>
+    
     <div class="two">
-      <div class="card">
-        <h3>Stays on your PC</h3>
-        <p>Audio, transcripts, voice profiles (stored as numeric embeddings, never recordings), the database and every model. Notes, Ask and translation use the local LLM by default.</p>
-      </div>
-      <div class="card">
-        <h3>Only if you configure it</h3>
-        <p>An Anthropic key or any OpenAI-compatible server (OpenAI, Ollama, LM Studio). Keys are encrypted with Windows DPAPI and never written to <code>settings.json</code>. Calendar feeds, webhooks and model downloads are the other network uses.</p>
-      </div>
+      <div class="card"><h3 data-i18n="t186">Stays on your PC</h3><p data-i18n="t187">Audio, transcripts, voice profiles (stored as numeric embeddings, never recordings), your test clips and reports, the database and every model. Notes, Ask and translation use the local LLM by default.</p></div>
+      <div class="card"><h3 data-i18n="t188">Only if you configure it</h3><p data-i18n="t189">An Anthropic key or any OpenAI-compatible server (OpenAI, Ollama, LM Studio). Keys are encrypted with Windows DPAPI and never written to <code>settings.json</code>. Calendar feeds, webhooks and model downloads are the other network uses.</p></div>
     </div>
-    <div class="note">Recording other people may require their consent where you live. MeetWise does not announce itself in the meeting, so telling participants is your responsibility.</div>
+    <div class="note" data-i18n="t190">Recording other people may require their consent where you live. MeetWise does not announce itself in the meeting, so telling participants is your responsibility.</div>
   </div>
 </section>
 
 <section id="hardware">
   <div class="wrap">
-    <div class="eyebrow">Hardware</div>
-    <h2>Runs on any PC, uses your GPU when it can</h2>
-    <p class="lead">At first run MeetWise detects your GPU and VRAM and picks sensible defaults. You can override them in Settings.</p>
+    <div class="eyebrow" data-i18n="t203">Hardware</div>
+    <h2 data-i18n="t204">Runs on any PC, uses your GPU when it can</h2>
+    <p class="lead" data-i18n="t205">At first run MeetWise detects your GPU and VRAM and picks sensible defaults. You can override them in Settings. If processing ever falls behind real time (the Try panel shows how close you are), MeetWise lowers the noise mode or pauses voice lock by itself and tells you.</p>
     <table>
-      <thead><tr><th>Tier</th><th>Detected as</th><th>Defaults</th></tr></thead>
+      <thead><tr><th data-i18n="t193">Tier</th><th data-i18n="t194">Detected as</th><th data-i18n="t195">Defaults</th></tr></thead>
       <tbody>
-        <tr><td>A</td><td>NVIDIA with 6 GB or more</td><td>Whisper large-v3-turbo and Qwen3-8B on the GPU; all noise modes</td></tr>
-        <tr><td>B</td><td>Any other GPU</td><td>Whisper small, Qwen3-4B</td></tr>
-        <tr><td>C</td><td>CPU only</td><td>Whisper base or small, Qwen3-4B on the CPU, or an API key</td></tr>
+        <tr><td>A</td><td data-i18n="t196">NVIDIA with 6 GB or more</td><td data-i18n="t197">Whisper large-v3-turbo and Qwen3-8B on the GPU; all noise modes</td></tr>
+        <tr><td>B</td><td data-i18n="t198">Any other GPU</td><td data-i18n="t199">Whisper small, Qwen3-4B</td></tr>
+        <tr><td>C</td><td data-i18n="t200">CPU only</td><td data-i18n="t201">Whisper base or small, Qwen3-4B on the CPU, or an API key</td></tr>
       </tbody>
     </table>
-    <p class="lead" style="margin-top:20px">The NVIDIA CUDA 13 libraries (about 400 MB) are downloaded from NVIDIA when you agree. You do not need to install the CUDA Toolkit. On 8 GB cards, the LLM is released before Whisper loads, so the two never compete for VRAM.</p>
+    <p class="lead" style="margin-top:20px" data-i18n="t202">The NVIDIA CUDA 13 libraries (about 400 MB) are downloaded from NVIDIA when you agree. You do not need to install the CUDA Toolkit. On 8 GB cards, the LLM is released before Whisper loads, so the two never compete for VRAM. The Try panels use the same rule.</p>
   </div>
 </section>
 
 <section id="start">
   <div class="wrap">
-    <div class="eyebrow">Getting started</div>
-    <h2>Build and run</h2>
-    <p class="lead">Requires Windows 11 x64 and the .NET 10 SDK. Models download on first use (resumable, SHA-256 verified).</p>
-<pre><code>git clone https://github.com/lcarlini/MeetWise
+    <div class="eyebrow" data-i18n="t208">Getting started</div>
+    <h2 data-i18n="t209">Build and run</h2>
+    <p class="lead" data-i18n="t210">Requires Windows 11 x64 and the .NET 10 SDK. Models download on first use (resumable, SHA-256 verified).</p>
+    <pre><code>git clone https://github.com/lcarlini/MeetWise
 cd MeetWise
 dotnet build MeetWise.slnx -c Release
-dotnet test tests/MeetWise.Tests -c Release   # 80 tests, incl. real models and devices
+dotnet test tests/MeetWise.Tests -c Release   # 495 tests, incl. real models and devices
 powershell -ExecutionPolicy Bypass -File start.ps1   # build latest and launch</code></pre>
-    <p class="lead">Check a published build's components with <code>MeetWise.App.exe --selftest report.txt</code>. It writes a report and exits with 0 when every required part loads.</p>
+    <p class="lead" data-i18n="t206">Check a published build’s components with <code>MeetWise.App.exe --selftest report.txt</code>. It writes a report and exits with 0 when every required part loads. Measure quality and speed on your PC with <code>MeetWise.App.exe --benchmark</code>.</p>
+    <p class="lead" data-i18n="t207">To rebuild the screenshots of this page in English and Portuguese: <code>powershell -File tools\capture-docs.ps1</code> (drives the real window; <code>tools\try-drive.ps1</code> runs a single test).</p>
+    
   </div>
 </section>
 
 <section id="status">
   <div class="wrap">
-    <div class="eyebrow">Honest status</div>
-    <h2>What is not done yet</h2>
+    <div class="eyebrow" data-i18n="t215">Honest status</div>
+    <h2 data-i18n="t216">What is not done yet</h2>
+    
     <div class="two">
-      <div class="card">
-        <h3>Not built</h3>
-        <p>MeetWise's own virtual-audio driver (the MeetWise Microphone uses VB-Audio's signed VB-CABLE instead, because Windows with Secure Boot only loads signed drivers); cleaning the other participants' audio before it reaches your speakers; true accent conversion (no usable streaming model exists); screens for tags, folders and speaker renaming; a mobile app; phone-call recording; a meeting-bot option; the Inno Setup installer.</p>
-      </div>
-      <div class="card">
-        <h3>Built, not tested end to end</h3>
-        <p>Installing the MeetWise Microphone and hearing it inside a real call (the installer needs a Windows administrator prompt and could not be run unattended); real room echo and Bluetooth speakers (echo cancellation was tested on synthetic signals and real recorded speech); a live Zoom, Teams or Meet call; automatic downgrade under real CPU overload; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds.</p>
-      </div>
+      <div class="card"><h3 data-i18n="t211">Not built</h3><p data-i18n="t212">MeetWise’s own virtual-audio driver (the MeetWise Microphone uses VB-Audio’s signed VB-CABLE instead, because Windows with Secure Boot only loads signed drivers); cleaning the other participants’ audio before it reaches your speakers; true accent conversion (no usable streaming model exists); screens for tags, folders and speaker renaming; a mobile app; phone-call recording; a meeting-bot option; the Inno Setup installer; running voice lock on the GPU (the CPU build is what ships, at about 43 % of real time here).</p></div>
+      <div class="card"><h3 data-i18n="t213">Built, not tested end to end</h3><p data-i18n="t214">Installing the MeetWise Microphone and hearing it inside a real call (the installer needs a Windows administrator prompt and could not be run unattended); real room echo and Bluetooth speakers (echo cancellation was tested on synthetic signals and real recorded speech); a live Zoom, Teams or Meet call; spoken translation into a virtual microphone; the Anthropic and OpenAI calls (stub server only); live calendar feeds; the Try panels’ microphone recording with a USB headset other than the one used in development; quality numbers on real voices in real rooms (the published ones are one synthetic clip).</p></div>
     </div>
   </div>
 </section>
 
+
 <footer>
   <div class="wrap">
-    MeetWise · built by Leandro Carlini · <a href="https://github.com/lcarlini/MeetWise">source on GitHub</a> · <a href="https://github.com/lcarlini/MeetWise#readme">README</a>
+    MeetWise · <span data-i18n="t217">built by Leandro Carlini</span> · <a href="https://github.com/lcarlini/MeetWise"><span data-i18n="t218">source on GitHub</span></a> · <a href="https://github.com/lcarlini/MeetWise#readme">README</a>
   </div>
 </footer>
+<script>
+(function () {
+  var PT = {"n001": "O que faz", "n002": "Teste você mesmo", "n003": "Medições", "n004": "Como funciona", "n005": "Telas", "n006": "Começar", "n007": "Situação", "skip": "Ir para o conteúdo", "t008": "Local primeiro · Windows 11 · Sem bot na reunião", "t009": "Um assistente de IA para suas reuniões que roda no seu próprio PC. Ele grava o que você ouve e fala, limpa o seu microfone, transcreve ao vivo e transforma cada reunião em notas, itens de ação e respostas. Tudo funciona offline; uma chave de API na nuvem é um upgrade opcional. E você pode testar cada recurso: grave alguns segundos, ouça o original e o resultado processado e leia os números.", "t010": "opcional", "t011": "495 testes automatizados", "cta1": "Teste você mesmo", "cta2": "Telas", "cta3": "Ver no GitHub", "t012": "Estúdio: gravar, legendar, perguntar", "t013": "Grave um monitor enquanto as legendas aparecem ao vivo em qualquer idioma. Salve vídeo + áudio + legendas em um único MP4 (as legendas são uma faixa que você liga e desliga, e um .srt é salvo ao lado), vídeo + áudio, só áudio ou só o texto. Depois peça à IA para resumir, listar itens de ação, criar capítulos ou traduzir.", "t014": "Novo", "t015": "Teste cada recurso você mesmo", "t016": "Cada página tem um painel “Teste você mesmo”: grave um trecho (ou abra um arquivo), execute o recurso, ouça o original e o resultado e leia números de qualidade e velocidade. Salve os resultados em um relatório para comparar ao longo do tempo.", "t017": "Novo", "t018": "Dicas em todo lugar", "t019": "Passe o mouse em qualquer controle para ver o que ele faz e qual é o custo-benefício. Cerca de 140 dicas, em inglês, português e espanhol.", "t020": "Importar e observar", "t021": "Importe áudio ou vídeo (faixa escolhida pelo idioma, filtro de ruído opcional), cole um link do YouTube ou deixe uma pasta observada legendar tudo o que você colocar nela.", "t022": "Funcionando", "t023": "Captura sem bot", "t024": "Grava seu microfone e o áudio do sistema em dois canais separados, então nenhum bot entra na chamada e “eu” e “outros” ficam separados.", "t025": "Funcionando", "t026": "Transcrição ao vivo", "t027": "Fala para texto em fluxo, com resultados parciais e tempos, mais uma passagem “Refinar” do Whisper na GPU para mais precisão em 99 idiomas.", "t028": "Funcionando", "t029": "Ruído, eco e trava de voz", "t030": "Três níveis de supressão de ruído, cancelamento de eco adaptativo e uma trava de voz que mantém só a voz cadastrada. A trava de voz usa cerca de 45 % do tempo real neste PC; se um PC não acompanhar, o MeetWise a pausa sozinho e avisa.", "t031": "Funcionando", "t032": "Inteligência de reuniões", "t033": "Notas, decisões, riscos e itens de ação com responsáveis e datas. Faça perguntas sobre todas as reuniões e receba respostas com citação de tempo.", "t034": "Funcionando", "t035": "Resumos antes da reunião", "t036": "Lê qualquer agenda iCal, avisa antes das reuniões, oferece gravar quando Zoom, Teams ou Meet começam e prepara um resumo das reuniões anteriores da mesma série.", "t037": "Funcionando", "t038": "Tradução ao vivo", "t039": "Mostra a fala das outras pessoas como legendas no seu idioma e pode falar suas frases traduzidas em um dispositivo escolhido.", "t040": "Um clique, um aviso do Windows", "t041": "Microfone MeetWise", "t042": "Um clique cria um microfone de verdade nas configurações de som do Windows. Defina-o como padrão e todo app (Zoom, Teams, Meet, Discord) ouve sua voz limpa. Usa o driver assinado VB-CABLE. Fechar a janela envia o MeetWise para a bandeja; abri-lo de novo traz a janela de volta (ele nunca abre duas vezes).", "t043": "Funcionando", "t044": "Treinador de inglês", "t045": "Enquanto você fala inglês, uma janela flutuante mostra sua frase com o erro riscado e a correção destacada. Só você vê. Em um conjunto de testes, pegou 15 de 15 erros sem nenhum falso alarme.", "t046": "O que faz", "t047": "Um lugar para tudo o que uma reunião produz", "t048": "Limpeza de áudio no estilo Krisp, inteligência de reuniões e gravação, em um só app. Nada sai do seu computador a menos que você escolha um provedor na nuvem.", "t049": "Teste", "t050": "Onde", "t051": "O que você recebe", "t052": "Limpeza do microfone", "t053": "Reuniões, Gravar", "t054": "Seu trecho passa pelo ruído Leve, Equilibrado e Máx., pelo cancelamento de eco e pela trava de voz. Um botão ▶ toca cada resultado. Números: quanto o fundo ficou mais baixo, se a sua voz manteve o mesmo nível, a clareza (voz acima do fundo) antes e depois, e quanto do tempo real o processamento usa.", "t055": "Cancelamento de ruído", "t056": "Biblioteca", "t057": "Os mesmos três níveis, para ver o que o “Filtro de ruído” fará em um arquivo antes de importá-lo.", "t058": "Legendas: motor ao vivo vs Whisper", "t059": "Gravar, Biblioteca", "t060": "O texto do motor de legendas ao vivo, do Whisper e do Whisper depois da limpeza, cada um com o tempo gasto. Digite o que você disse e ele conta os erros de palavras.", "t061": "Quem está falando", "t062": "Reuniões", "t063": "Turnos de fala encontrados no trecho, com intervalos de tempo, e o nome de qualquer voz que você cadastrou.", "t064": "Tradução e tradução falada", "t065": "Reuniões, Assistente de IA", "t066": "O que você disse (ou digitou) traduzido para o idioma escolhido, o tempo gasto, qualquer aviso (números, dias da semana) e um botão ▶ para ouvir com uma voz do Windows.", "t067": "Treinador de inglês", "t068": "Reuniões", "t069": "Sua frase em inglês, digitada ou falada, com as correções e o motivo de cada uma.", "t070": "Assistente de IA em uma reunião de exemplo", "t071": "Assistente de IA", "t072": "Resumo, itens de ação e capítulos de uma reunião de exemplo embutida, cada um com o seu tempo, para avaliar a IA e a velocidade sem gravar nada.", "t073": "Codificadores de vídeo neste PC", "t074": "Gravar", "t075": "Os codificadores que o seu PC oferece (NVIDIA, AMD, Intel ou CPU) e o que o MeetWise usa.", "a076": "Painel de teste na página Reuniões com o teste de limpeza do microfone: original, Leve, Equilibrado e Máx.", "t077": "Limpeza do microfone: original, Leve, Equilibrado, Máx. e trava de voz, cada um com botão de tocar e números.", "a078": "Painel de teste na página Gravar comparando o motor de legendas ao vivo com o Whisper", "t079": "Legendas: motor ao vivo contra o Whisper, com o tempo de cada um e a taxa de erro de palavras.", "a080": "Painel de teste mostrando os turnos de fala encontrados em um trecho", "t081": "Quem está falando: os turnos encontrados no trecho.", "a082": "Painel de teste listando os codificadores de vídeo disponíveis neste PC", "t083": "Codificadores de vídeo: o que o PC oferece e qual o MeetWise usa.", "a084": "Painel de teste com uma tradução, o tempo gasto e um botão para ouvir a tradução falada", "t085": "Tradução e tradução falada, com o tempo gasto.", "a086": "Painel de teste mostrando o treinador de inglês corrigindo uma frase", "t087": "Treinador de inglês: a frase corrigida e o motivo de cada correção.", "a088": "Painel de teste na página Assistente de IA com resumo, itens de ação e capítulos de uma reunião de exemplo", "t089": "Assistente de IA em uma reunião de exemplo: resumo, itens de ação e capítulos, cada um cronometrado.", "t090": "Como usar", "t091": "Abra qualquer página e expanda <b>Teste você mesmo</b>.", "t092": "Pressione <b>Gravar</b> e fale de 5 a 30 segundos (grava o seu microfone real, nunca o Microfone MeetWise), ou <b>Abrir um arquivo</b>. Marque “gravar também o que o PC toca” e toque um vídeo para testar o cancelamento de eco.", "t093": "Escolha um teste e pressione <b>Executar teste</b>. Os modelos são preparados no primeiro uso. Pressione ▶ em qualquer linha para ouvi-la.", "t094": "<b>Salvar resultado no relatório</b> adiciona as linhas ao <code>results.csv</code> em <code>%AppData%\\MeetWise\\try</code>, para comparar execuções ao longo do tempo ou entre versões. O último trecho é compartilhado por todos os painéis e guardado para a próxima vez.", "a095": "Dica sobre a opção Trava de voz explicando o que faz e o seu custo", "t096": "Passe o mouse em qualquer controle para ver uma dica: o que faz, quando usar e o custo-benefício.", "t097": "Benchmark sem janela", "t098": "O mesmo código roda pela linha de comando e grava um relatório em Markdown. Sem um trecho, ele fala três frases com uma voz do Windows e adiciona zumbido e chiado, então o texto verdadeiro é conhecido e os erros de palavras podem ser contados.", "t099": "<code>--quick</code> pula os testes que precisam do modelo de linguagem; <code>--tune</code> mede quantas threads e qual tamanho de bloco a trava de voz precisa neste PC.", "t100": "Teste você mesmo", "t101": "Grave alguns segundos e compare", "t102": "Como nos apps comerciais, o MeetWise deixa você avaliar a qualidade com seus próprios ouvidos e sua própria voz, recurso por recurso, no seu próprio PC. Os números abaixo dos botões mostram o que os ouvidos podem deixar passar.", "t103": "Limpeza do microfone", "t104": "Trecho de teste: três frases faladas, com zumbido de 50 Hz e chiado misturados (fundo cerca de 33 dB abaixo das partes mais altas da voz). Medido com os próprios números do painel, em um RTX 4070 Laptop.", "t105": "Modo", "t106": "Fundo", "t107": "Voz", "t108": "Clareza", "t109": "Tempo real usado", "t110": "Original", "t111": "Leve", "t112": "Equilibrado", "t113": "Máx.", "t114": "Trava de voz (antes da correção: 301 %)", "t115": "Fundo menor é melhor; a voz deve ficar perto de 0 dB; o tempo real usado precisa ficar abaixo de 100 % para rodar ao vivo. A trava de voz estava 3 vezes lenta demais até a entrada ser agrupada em blocos de 80 ms (o modelo custa cerca de 30 ms por chamada, qualquer que seja o bloco). Agora está em 43 %, e o trecho não é a voz cadastrada, por isso ela remove a fala aqui.", "t116": "Legendas, falantes, vídeo", "t117": "Mesmo trecho, de 16,3 s, com texto conhecido. Erros de palavras contam substituições, inserções e omissões em relação ao que foi falado.", "t118": "Teste", "t119": "Tempo", "t120": "Erros de palavras", "t121": "Motor de legendas ao vivo (inglês)", "t122": "Whisper na GPU (eram 16,7 s no caminho da CPU)", "t123": "Whisper depois da limpeza Equilibrada", "t124": "Turnos de falantes (2 falantes encontrados em um trecho de 1 voz)", "t125": "Codificadores de vídeo: NVIDIA NVENC escolhido, AMD AMF e x264 também encontrados", "t126": "É um trecho sintético em um PC. Sua voz, sua sala e seu microfone darão números diferentes, e é exatamente para isso que existem os painéis de teste. O motor ao vivo troca precisão por velocidade: o Whisper é o que o botão “Refinar” usa.", "t127": "Medições", "t128": "Qualidade e velocidade, com números", "t129": "Produzido pelo mesmo código dos painéis (<code>--benchmark</code>), então você pode repetir. Duas coisas que isso encontrou e corrigiu: a trava de voz rodava a 301 % do tempo real e o Whisper rodava no caminho da CPU dentro da bancada de testes.", "t130": "Captura", "t131": "Dois fluxos WASAPI: seu microfone e o loopback do que o PC toca. A gravação sobrevive a troca de dispositivos e à suspensão.", "t132": "Limpeza", "t133": "Cancelamento de eco, depois supressão de ruído ou trava de voz. A trava de voz junta 80 ms de áudio por chamada porque seu modelo tem custo fixo por chamada; os outros modos usam blocos de 10 a 20 ms e 6 a 34 % do tempo real.", "t134": "Transcrição", "t135": "Reconhecedores em fluxo, um por canal, rodam em threads de trabalho para que a captura de áudio nunca seja bloqueada.", "t136": "Refinar e analisar", "t137": "O Whisper transcreve de novo cada canal na GPU, os falantes são nomeados e o LLM local escreve notas e itens de ação.", "t138": "Fluxo de dados: dois canais, limpos e transcritos ao vivo, salvos em disco conforme chegam, depois refinados e analisados.", "t139": "Como funciona", "t140": "Do seu microfone às notas da reunião", "t141": "O áudio é processado em blocos pequenos, então nada espera uma reunião inteira terminar. O trabalho pesado (transcrição de alta precisão, nomes dos falantes, notas) roda depois da reunião, um modelo por vez, para nunca sobrecarregar a GPU de um notebook.", "t142": "Cancelamento de eco", "t143": "O áudio dos alto-falantes é alinhado ao microfone medindo o atraso (20 a 400 ms é normal), um filtro adaptativo subtrai o eco, e o que sobra só é reduzido quando não é mais alto que o próprio eco. Nada se adapta sem evidência de eco, então com fones sua voz fica intacta. Um microfone mudo continua mudo, um loopback que falha reinicia sozinho e não há latência extra. Você pode conferir no seu PC com o teste de eco do painel.", "t144": "Referência adiantada em relação ao microfone", "t145": "0 a 400 ms", "t146": "Eco removido (antes: 8,0 dB a 100 ms, 1,3 dB a 400 ms)", "t147": "Depois de mover o alto-falante (antes)", "t148": "Sua voz enquanto o outro lado fala", "t149": "nível mantido dentro de 0,1 dB", "t150": "Custo de um bloco de 10 ms (16 / 48 kHz)", "t151": "cerca de 0,8 % / 2,5 % do tempo real", "t152": "sinais sintéticos, fala real gravada", "t153": "salas reais e caixas Bluetooth não testadas", "t154": "Tradução ao vivo", "t155": "Legendas do que as outras pessoas dizem no seu idioma, e suas próprias frases traduzidas e faladas em um microfone virtual. Fragmentos viram frases; um trabalhador por direção mantém a ordem; se o modelo atrasar, frases antigas são puladas e você é avisado. Se uma tradução falha, você ainda vê o que foi dito, com o motivo. Ele confere se números, perguntas e dias da semana sobreviveram (o modelo local já trocou sexta por quinta) e não escuta a própria voz traduzida para traduzi-la de novo. O teste de tradução do painel mostra o tempo e os avisos de qualquer frase.", "t156": "Qwen3-8B local, RTX 4070 Laptop", "t157": "Uma frase (en, pt, es, todas as direções)", "t158": "0,6 s mediana", "t159": "Fim da fala até a legenda na tela", "t160": "0,49 s mediana, 1,06 s no percentil 95", "t161": "Fim da fala até o áudio traduzido pronto", "t162": "0,41 s mediana", "t163": "Tempo que o áudio e a interface esperam o modelo", "t164": "nenhum", "t165": "local por padrão", "t166": "nuvem só se você escolher", "t167": "vozes do Windows só para idiomas instalados", "l1": "Como funciona o cancelamento de eco", "l2": "Como funciona a tradução ao vivo", "l3": "A auditoria: o que foi achado e corrigido", "t168": "Eco e tradução", "t169": "Duas coisas que nunca podem atrapalhar uma chamada", "t170": "As duas rodam ao lado do microfone e da transcrição, nunca dentro deles: um cancelador de eco que acompanha o atraso real dos seus alto-falantes e uma tradução ao vivo que descarta carga em vez de ficar para trás. Ambas têm testes automatizados, incluindo o modelo local real e a voz real do Windows.", "a171": "Página Gravar com monitor, microfone e qualidade, o botão de gravar e as legendas ao vivo", "t172": "Gravar: escolha a tela, o que salvar (vídeo + áudio + legendas, vídeo + áudio, só áudio ou só texto) e a qualidade, depois pressione Gravar (ou Ctrl+Shift+R).", "a173": "Página Legendas com linhas selecionáveis e botões de copiar e salvar", "t174": "Legendas: marque as linhas que quer, copie ou salve SRT, VTT ou TXT.", "a175": "Página Assistente de IA com botões de comando e uma resposta", "t176": "Assistente de IA: comandos de um clique ou texto livre, respondidos por um modelo local (aqui o Qwen3-8B na GPU).", "a177": "Página Biblioteca com gravações, importações, YouTube e pasta observada", "t178": "Biblioteca: busque em todas as transcrições, importe arquivos ou YouTube, observe uma pasta.", "a179": "Página Reuniões com o Microfone MeetWise, o painel Teste você mesmo e as notas das reuniões", "t180": "Reuniões: Microfone MeetWise, trava de voz, treinador de inglês, o painel de testes, notas e perguntas.", "a181": "Janela de treino de voz mostrando a frase 1 de 6 para ler em voz alta", "t182": "Treino de voz: seis frases, cada uma conferida quanto a fala suficiente, ausência de distorção, sala silenciosa e se só você está falando. A mesma janela testa a sua trava de voz.", "t183": "Telas", "t184": "O app", "t185": "O Estúdio tem cinco páginas: Gravar, Legendas, Assistente de IA, Biblioteca e Reuniões. São capturas de tela reais da versão em um RTX 4070 Laptop, no idioma escolhido acima.", "t186": "Fica no seu PC", "t187": "Áudio, transcrições, perfis de voz (guardados como vetores numéricos, nunca gravações), seus trechos e relatórios de teste, o banco de dados e todos os modelos. Notas, Perguntar e tradução usam o LLM local por padrão.", "t188": "Só se você configurar", "t189": "Uma chave da Anthropic ou qualquer servidor compatível com OpenAI (OpenAI, Ollama, LM Studio). As chaves são criptografadas com o DPAPI do Windows e nunca gravadas no <code>settings.json</code>. Feeds de agenda, webhooks e downloads de modelos são os outros usos da rede.", "t190": "Gravar outras pessoas pode exigir o consentimento delas onde você mora. O MeetWise não se anuncia na reunião, então avisar os participantes é sua responsabilidade.", "t191": "Privacidade e nuvem", "t192": "Local primeiro, nuvem opcional", "t193": "Nível", "t194": "Detectado como", "t195": "Padrões", "t196": "NVIDIA com 6 GB ou mais", "t197": "Whisper large-v3-turbo e Qwen3-8B na GPU; todos os modos de ruído", "t198": "Qualquer outra GPU", "t199": "Whisper small, Qwen3-4B", "t200": "Só CPU", "t201": "Whisper base ou small, Qwen3-4B na CPU, ou uma chave de API", "t202": "As bibliotecas NVIDIA CUDA 13 (cerca de 400 MB) são baixadas da NVIDIA quando você concorda. Não é preciso instalar o CUDA Toolkit. Em placas de 8 GB, o LLM é liberado antes de o Whisper carregar, então os dois nunca disputam a VRAM. Os painéis de teste seguem a mesma regra.", "t203": "Hardware", "t204": "Roda em qualquer PC, usa sua GPU quando pode", "t205": "Na primeira execução o MeetWise detecta sua GPU e VRAM e escolhe padrões sensatos. Você pode mudá-los nas Configurações. Se o processamento ficar para trás do tempo real (o painel de teste mostra o quanto você está perto), o MeetWise reduz o modo de ruído ou pausa a trava de voz sozinho e avisa.", "t206": "Confira os componentes de uma versão publicada com <code>MeetWise.App.exe --selftest relatorio.txt</code>. Ele grava um relatório e sai com 0 quando todas as partes obrigatórias carregam. Meça qualidade e velocidade no seu PC com <code>MeetWise.App.exe --benchmark</code>.", "t207": "Para refazer as capturas de tela desta página em inglês e português: <code>powershell -File tools\\capture-docs.ps1</code> (controla a janela real; <code>tools\\try-drive.ps1</code> roda um único teste).", "t208": "Começando", "t209": "Compilar e executar", "t210": "Requer Windows 11 x64 e o SDK do .NET 10. Os modelos são baixados no primeiro uso (retomável, com SHA-256 verificado).", "t211": "Não feito", "t212": "O driver de áudio virtual próprio do MeetWise (o Microfone MeetWise usa o VB-CABLE assinado da VB-Audio, porque o Windows com Secure Boot só carrega drivers assinados); limpar o áudio dos outros participantes antes de chegar aos seus alto-falantes; conversão de sotaque de verdade (não existe modelo em fluxo utilizável); telas de etiquetas, pastas e renomear falantes; app para celular; gravação de ligações; uma opção de bot na reunião; o instalador Inno Setup; rodar a trava de voz na GPU (a versão de CPU é a que vai, a cerca de 43 % do tempo real aqui).", "t213": "Feito, não testado de ponta a ponta", "t214": "Instalar o Microfone MeetWise e ouvi-lo dentro de uma chamada real (o instalador precisa de um aviso de administrador do Windows e não pôde rodar sem acompanhamento); eco de sala real e caixas Bluetooth (o cancelamento de eco foi testado com sinais sintéticos e fala real gravada); uma chamada real no Zoom, Teams ou Meet; tradução falada em um microfone virtual; as chamadas à Anthropic e OpenAI (só com servidor simulado); feeds de agenda reais; a gravação do microfone dos painéis de teste com um fone USB diferente do usado no desenvolvimento; números de qualidade em vozes reais em salas reais (os publicados são de um trecho sintético).", "t215": "Situação honesta", "t216": "O que ainda não está pronto", "t217": "feito por Leandro Carlini", "t218": "código no GitHub"};
+  var KEY = 'meetwise-doc-lang';
+  var meta = document.querySelector('meta[name="description"]');
+  var EN = {};
+  document.querySelectorAll('[data-i18n]').forEach(function (el) { EN[el.getAttribute('data-i18n')] = el.innerHTML; });
+  document.querySelectorAll('[data-i18n-alt]').forEach(function (el) { EN[el.getAttribute('data-i18n-alt')] = el.getAttribute('alt'); });
+  var TITLE = { en: document.title, pt: 'MeetWise: assistente de reuniões com IA, local primeiro' };
+  var DESC = { en: meta ? meta.getAttribute('content') : '', pt: 'O MeetWise captura, transcreve, limpa e resume suas reuniões no seu próprio PC Windows.' };
 
+  function apply(lang) {
+    var pt = lang === 'pt';
+    document.documentElement.lang = pt ? 'pt-BR' : 'en';
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var k = el.getAttribute('data-i18n'); var v = pt ? PT[k] : EN[k]; if (v != null) el.innerHTML = v;
+    });
+    document.querySelectorAll('[data-i18n-alt]').forEach(function (el) {
+      var k = el.getAttribute('data-i18n-alt'); var v = pt ? PT[k] : EN[k]; if (v != null) el.setAttribute('alt', v);
+    });
+    document.querySelectorAll('img[data-img]').forEach(function (img) {
+      img.setAttribute('src', 'img/' + img.getAttribute('data-img') + (pt ? '-pt' : '') + '.png');
+      img.onerror = function () { this.onerror = null; this.setAttribute('src', 'img/' + this.getAttribute('data-img') + '.png'); }; // no Portuguese picture yet: show the English one
+    });
+    document.title = TITLE[lang]; if (meta) meta.setAttribute('content', DESC[lang]);
+    document.querySelectorAll('.lang button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false'); });
+  }
+  function get() {
+    try { var q = new URLSearchParams(location.search).get('lang'); if (q === 'pt' || q === 'pt-br') return 'pt'; if (q === 'en') return 'en'; } catch (e) {}
+    try { var s = localStorage.getItem(KEY); if (s === 'pt' || s === 'en') return s; } catch (e) {}
+    return 'en'; // English is the default
+  }
+  function set(lang) { try { localStorage.setItem(KEY, lang); } catch (e) {} apply(lang); }
+  document.querySelectorAll('.lang button').forEach(function (b) { b.addEventListener('click', function () { set(b.getAttribute('data-lang')); }); });
+  apply(get());
+})();
+</script>
 </body>
 </html>

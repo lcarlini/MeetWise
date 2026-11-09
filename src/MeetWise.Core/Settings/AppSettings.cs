@@ -1,6 +1,6 @@
 namespace MeetWise.Core.Settings;
 
-public enum CapturePreset { TranscriptOnly, AudioOnly, AudioVideo }
+public enum CapturePreset { TranscriptOnly, AudioOnly, AudioVideo, AudioVideoSubtitles }
 public enum QualityPreset { LowFileSize, Balanced, MaximumQuality }
 public enum NoiseMode { Off, Light, Balanced, Max }
 public enum HardwareTier { A_NvidiaRtx, B_AnyGpu, C_CpuOnly }

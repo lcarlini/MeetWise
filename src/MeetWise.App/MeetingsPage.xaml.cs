@@ -1,3 +1,4 @@
+using MeetWise.App.Try;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
@@ -33,6 +34,19 @@ public partial class MeetingsPage : UserControl
     {
         InitializeComponent();
         _ctx = ctx;
+        MicTest.Setup(new QuickSpec
+        {
+            TitleKey = "cmp.title", HintKey = "cmp.hint", Seconds = 10,
+            MicId = () => { SaveSettings(); return QuickRunners.PhysicalMic(_settings); },
+            CaptureSystemAudio = () => _settings.EchoCancellation,
+            Run = i => QuickRunners.Microphone(ctx, i)
+        });
+        CoachTest.Setup(new QuickSpec
+        {
+            TitleKey = "quick.coach.title", HintKey = "quick.coach.hint", Seconds = 8, ShowText = true, RunKey = "quick.coach.run",
+            MicId = () => QuickRunners.PhysicalMic(_settings),
+            Run = i => QuickRunners.Coach(ctx, i)
+        });
 
         var mics = new AudioDeviceService().GetMicrophones();
         MicCombo.ItemsSource = mics;
@@ -101,7 +115,7 @@ public partial class MeetingsPage : UserControl
         {
             if (_enhance.IsRunning)
             {
-                _enhance.Stop();
+                await Task.Run(() => _enhance.Stop());
                 EnhanceButton.Content = "Start cleanup";
                 StatusText.Text = "Microphone cleanup stopped.";
             }

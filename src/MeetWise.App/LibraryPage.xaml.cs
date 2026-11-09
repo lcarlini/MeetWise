@@ -1,3 +1,4 @@
+using MeetWise.App.Try;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -58,6 +59,11 @@ public partial class LibraryPage : UserControl
     {
         InitializeComponent();
         _ctx = ctx;
+        ImportTest.Setup(new QuickSpec
+        {
+            TitleKey = "quick.imp.title", HintKey = "quick.imp.hint", AllowFile = true,
+            Run = i => QuickRunners.ImportPreview(_ctx, i, ImportNoise.IsChecked == true, ImportLanguage.SelectedValue as string ?? Languages.Auto, ImportTranslate.IsChecked == true)
+        });
         ItemGrid.ItemsSource = _rows;
         Jobs.ItemsSource = _jobs;
         _rows.CollectionChanged += (_, _) => EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

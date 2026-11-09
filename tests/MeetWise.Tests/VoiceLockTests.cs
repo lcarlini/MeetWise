@@ -128,6 +128,52 @@ public class VoiceLockTests
         return new Run(mix, output.ToArray());
     }
 
+    /// <summary>
+    /// Voice lock keeps the enrolled voice but leaves steady noise; until 2026-11-09 it replaced the noise model, so with voice lock on no noise
+    /// cancellation ran at all. The chain (voice lock, then a noise model) must remove the hiss and still pass my voice.
+    /// </summary>
+    [Fact]
+    public void VoiceLockChain_AlsoRemovesSteadyNoise_AndKeepsMyVoice()
+    {
+        var gtcrn = Path.Combine(Models, "enhance", "gtcrn_simple.onnx");
+        if (!Have || !File.Exists(gtcrn)) return;
+        using var emb = new SpeakerEmbedder(Emb);
+        var me = Wav("1.wav");
+        var dir = Path.Combine(Path.GetTempPath(), "mw-lockchain-" + Guid.NewGuid().ToString("N"));
+        VoiceTrainer.Build(new[] { Slice(me, 0, 6), Slice(me, 6, 8) }, Vad, emb, "Me", dir);
+
+        int n = 12 * 16000;
+        var rng = new Random(5);
+        var speech = me[(8 * 16000)..];
+        var mix = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            float v = i >= 4 * 16000 && i - 4 * 16000 < speech.Length && i < 10 * 16000 ? speech[i - 4 * 16000] : 0f;
+            mix[i] = v + (float)((rng.NextDouble() * 2 - 1) * 0.02); // steady hiss under everything
+        }
+
+        float[] RunWith(EnhancementOptions o)
+        {
+            using var engine = new EnhancementEngine(16000, o);
+            var output = new List<float>();
+            for (int i = 0; i < n; i += 160) output.AddRange(engine.Process(mix.AsSpan(i, Math.Min(160, n - i)).ToArray()));
+            output.AddRange(engine.Flush());
+            Assert.Equal(16000, engine.OutputSampleRate);
+            return output.ToArray();
+        }
+
+        var lockOnly = new EnhancementOptions(EnhancerKind.VoiceIsolation, null, false, Vox, VoiceProfile.ClipPath(dir), 2, MinBlockMs: 80);
+        var chained = lockOnly with { PostKind = EnhancerKind.Light, PostModelPath = gtcrn };
+        var a = RunWith(lockOnly);
+        var b = RunWith(chained);
+
+        Assert.InRange(b.Length, a.Length - 3200, a.Length + 3200); // no audio lost by the second stage
+        double noiseA = Db(Rms(a, 1 * 16000, 3 * 16000)), noiseB = Db(Rms(b, 1 * 16000, 3 * 16000));
+        double voiceMix = Db(Rms(mix, 5 * 16000, 9 * 16000)), voiceB = Db(Rms(b, 5 * 16000, 9 * 16000));
+        Assert.True(noiseB < noiseA - 6, $"the noise stage removed too little after voice lock: {noiseA:0.0} -> {noiseB:0.0} dB");
+        Assert.True(voiceB > voiceMix - 8, $"my voice lost too much in the chain: {voiceMix:0.0} -> {voiceB:0.0} dB");
+    }
+
     [Fact]
     public void VoiceLock_PassesMe_AndRemovesOtherSpeakers()
     {

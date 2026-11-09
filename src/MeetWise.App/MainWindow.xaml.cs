@@ -87,6 +87,15 @@ public partial class MainWindow : Window
         _reminders = new ReminderScheduler(TimeSpan.FromMinutes(settings.ReminderMinutes));
         _tray = new TaskbarIcon { Icon = AppIcon(), ToolTipText = "MeetWise" };
         _tray.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
+        _tray.TrayLeftMouseUp += (_, _) => RestoreFromTray();
+        var menu = new ContextMenu();
+        var open = new MenuItem { Header = "Open MeetWise" };
+        open.Click += (_, _) => RestoreFromTray();
+        var exit = new MenuItem { Header = "Exit" };
+        exit.Click += (_, _) => Close();
+        menu.Items.Add(open);
+        menu.Items.Add(exit);
+        _tray.ContextMenu = menu;
         _tray.TrayBalloonTipClicked += async (_, _) =>
         {
             var action = _balloonAction;
@@ -165,7 +174,7 @@ public partial class MainWindow : Window
     {
         NavSettings.IsChecked = false;
         _meetings.SaveSettings();
-        var dlg = new SettingsWindow(_ctx.Settings, _ctx.Secrets) { Owner = this };
+        var dlg = new SettingsWindow(_ctx.Settings, _ctx.Secrets) { Owner = this, Studio = _ctx };
         if (dlg.ShowDialog() == true)
         {
             _ctx.Save();
@@ -177,10 +186,11 @@ public partial class MainWindow : Window
 
     // ---- tray, call detection, calendar ----
 
-    private void RestoreFromTray()
+    internal void RestoreFromTray()
     {
         Show();
         WindowState = WindowState.Normal;
+        Topmost = true; Topmost = false; // brings it in front of other windows
         Activate();
     }
 
@@ -258,6 +268,7 @@ public partial class MainWindow : Window
         _meetings.SaveSettings();
         _meetings.Shutdown();
         _library.Shutdown();
+        _record.Shutdown();
         _tray.Dispose();
         _ctx.Enhance.Dispose();
         _ctx.Imports.Dispose();
