@@ -1,7 +1,6 @@
 using MeetWise.Core.Hardware;
 using MeetWise.Core.Models;
 using MeetWise.Core.Settings;
-using MeetWise.Storage;
 
 namespace MeetWise.Tests;
 
@@ -14,14 +13,15 @@ public class CoreTests
     {
         var dir = Temp();
         var store = new SettingsStore(dir);
-        Assert.Equal(NoiseMode.Balanced, store.Load().NoiseCancellation);
+        Assert.Equal(NoiseMode.Max, store.Load().NoiseCancellation);
+        Assert.True(store.Load().AlwaysOnMicrophone);
         var s = store.Load();
-        s.NoiseCancellation = NoiseMode.Max;
-        s.Preset = CapturePreset.AudioVideo;
+        s.NoiseCancellation = NoiseMode.Light;
+        s.NoiseStrength = 40;
         store.Save(s);
         var back = new SettingsStore(dir).Load();
-        Assert.Equal(NoiseMode.Max, back.NoiseCancellation);
-        Assert.Equal(CapturePreset.AudioVideo, back.Preset);
+        Assert.Equal(NoiseMode.Light, back.NoiseCancellation);
+        Assert.Equal(40, back.NoiseStrength);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class CoreTests
         var dir = Temp();
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "settings.json"), "{ not json");
-        Assert.Equal(NoiseMode.Balanced, new SettingsStore(dir).Load().NoiseCancellation);
+        Assert.Equal(NoiseMode.Max, new SettingsStore(dir).Load().NoiseCancellation);
     }
 
     [Theory]
@@ -47,22 +47,6 @@ public class CoreTests
     [InlineData(6000, "medium")]
     [InlineData(0, "base")]
     public void WhisperModel_ByVram(long vram, string expected) => Assert.Equal(expected, HardwareDetector.SelectWhisperModel(vram));
-
-    [Fact]
-    public void Database_Segments_Search_And_ActionItems()
-    {
-        var db = new MeetingDatabase(Path.Combine(Temp(), "t.db"));
-        var m = db.AddMeeting("Sprint review", DateTime.UtcNow, "series-1");
-        db.AddSegment(m, "Me", 0, 2, "Let's ship the invoice export on Friday");
-        db.AddSegment(m, "Others", 2, 4, "I will update the Kubernetes manifests");
-        db.AddActionItem(m, "Update manifests", "Ana");
-
-        Assert.Equal(2, db.GetTranscript(m).Count);
-        var hit = Assert.Single(db.Search("kubernetes"));
-        Assert.Equal("Others", hit.Speaker);
-        Assert.Empty(db.Search("\"; DROP TABLE"));
-        Assert.Equal("Ana", Assert.Single(db.OpenActionItems()).Owner);
-    }
 
     [Fact]
     public async Task ModelManager_VerifiesChecksum()

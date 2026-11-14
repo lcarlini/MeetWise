@@ -132,3 +132,40 @@ public class ResilientRouteTests
         Assert.Equal(1, calls);
     }
 }
+
+public class ResilientRouteTimeoutTests
+{
+    private sealed class OkRoute : IAudioRoute
+    {
+        public bool Disposed;
+        public event Action<string>? Failed { add { } remove { } }
+        public void Start() { }
+        public double RecentLoad => 0;
+        public long Overflows => 0;
+        public void Dispose() => Disposed = true;
+    }
+
+    [Fact]
+    public void AHungBuild_IsAbandoned_TheNextOneRuns_AndTheLateOneIsDisposed()
+    {
+        var release = new ManualResetEventSlim();
+        var late = new OkRoute();
+        var good = new OkRoute();
+        int calls = 0;
+        using var r = new ResilientRoute(() =>
+        {
+            if (Interlocked.Increment(ref calls) == 1) { release.Wait(); return late; } // Windows audio hangs on the first try
+            return good;
+        }, _ => TimeSpan.FromMilliseconds(50)) { BuildTimeout = TimeSpan.FromMilliseconds(300) };
+
+        r.Start();                                    // returns after the timeout instead of hanging
+        Assert.Contains("Windows audio", r.Status);
+        for (int i = 0; i < 100 && r.Status != "running"; i++) Thread.Sleep(20);
+        Assert.Equal("running", r.Status);            // the retry got a working route
+
+        release.Set();                                // the first build finally finishes...
+        for (int i = 0; i < 100 && !late.Disposed; i++) Thread.Sleep(20);
+        Assert.True(late.Disposed);                   // ...and is closed, never used
+        Assert.False(good.Disposed);
+    }
+}

@@ -19,11 +19,23 @@ public sealed class StartupRegistration
         }
     }
 
-    /// <param name="exePath">Program to start. The --minimized switch keeps it in the tray.</param>
+    /// <param name="exePath">Program to start. --audio-host runs only the background microphone (tray icon, no window).</param>
     public void Enable(string exePath)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-        key.SetValue(_valueName, $"\"{exePath}\" --minimized");
+        key.SetValue(_valueName, $"\"{exePath}\" --audio-host");
+    }
+
+    /// <summary>
+    /// Older versions started the whole window at sign-in ("--minimized"). The microphone now lives in the background host: switch the
+    /// argument and keep the program path that was registered. Returns true when the entry was changed.
+    /// </summary>
+    public bool MigrateLegacy()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+        if (key?.GetValue(_valueName) is not string value || !value.EndsWith("--minimized", StringComparison.OrdinalIgnoreCase)) return false;
+        key.SetValue(_valueName, value[..^"--minimized".Length] + "--audio-host");
+        return true;
     }
 
     public void Disable()

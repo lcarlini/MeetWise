@@ -144,15 +144,7 @@ public partial class VoiceProfileWindow : Window
         RecordButton.IsEnabled = false;
         try
         {
-            var name = string.IsNullOrWhiteSpace(_settings.UserNickname) ? "Me" : _settings.UserNickname!;
-            var profile = await Task.Run(() =>
-            {
-                var p = VoiceTrainer.Build(_accepted, _vadModel, _embedder!, name);
-                // also teach the speaker labeller your name, so meeting transcripts call you by it
-                using var voices = new SpeakerProfiles(_embeddingModel, Path.Combine(AppPaths.Roaming, "voices", "voices.json"));
-                voices.Enroll(name, MeetWise.Audio.AudioFile.ReadMono16k(VoiceProfile.ClipPath()));
-                return p;
-            });
+            var profile = await Task.Run(() => VoiceTrainer.Build(_accepted, _vadModel, _embedder!, "Me"));
             _settings.VoiceIsolation = true;
             Changed = true;
             StepText.Text = "Your voice profile is ready.";
@@ -185,7 +177,7 @@ public partial class VoiceProfileWindow : Window
         {
             var manager = new ModelManager(_http);
             TestResultText.Text = "Preparing voice isolation (one time)…";
-            await manager.EnsureAsync(ModelCatalog.VoiceIsolation);
+            await manager.EnsureAsync(ModelCatalog.VoiceIsolationFor());
 
             using var rec = new ClipRecorder(_settings.MicrophoneId, _settings.PhysicalMicId);
             rec.Level += peak => Dispatcher.BeginInvoke(() => LevelBar.Value = peak);
@@ -199,7 +191,7 @@ public partial class VoiceProfileWindow : Window
             LevelBar.Value = 0;
 
             TestResultText.Text = "Applying your voice lock…";
-            var voxDir = manager.PathFor(ModelCatalog.VoiceIsolation);
+            var voxDir = manager.PathFor(ModelCatalog.VoiceIsolationFor());
             var raw = _testRaw;
             _testLocked = await Task.Run(() =>
             {

@@ -38,34 +38,73 @@ public sealed class ResilientRoute : IDisposable
     /// <summary>Called when the set of audio devices or the Windows default changed: rebuild against the new situation.</summary>
     public void DevicesChanged() => Rebuild("devices changed");
 
+    /// <summary>How long building and starting a route may take. Opening a device can block for ever when the Windows audio service itself
+    /// hangs (seen on the user's PC on 2026-11-13: svchost "stopped interacting" and Windows restarted it), so the build runs on its own thread
+    /// and is abandoned after this long; a build that finishes late is disposed.</summary>
+    public TimeSpan BuildTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+    private int _generation;
+
     private void Rebuild(string reason)
     {
+        int gen;
         lock (_gate)
         {
             if (_disposed) return;
             _retry?.Dispose();
             _retry = null;
             DisposeRoute();
+            gen = ++_generation;
+        }
+
+        IAudioRoute? built = null;
+        Exception? error = null;
+        var done = new ManualResetEventSlim();
+        var worker = new Thread(() =>
+        {
             try
             {
                 var route = _factory();
                 route.Failed += OnFailed;
                 route.Start();
-                _route = route;
+                built = route;
+            }
+            catch (Exception ex) { error = ex; }
+            finally
+            {
+                done.Set();
+                // finished after it was abandoned (timeout, newer rebuild or dispose): nobody owns it, so close it here
+                bool orphan;
+                lock (_gate) orphan = _disposed || gen != _generation || !ReferenceEquals(_pending, done);
+                if (orphan && built is not null) { built.Failed -= OnFailed; try { built.Dispose(); } catch (Exception) { } AppLog.Info("A late route build was discarded."); }
+            }
+        }) { IsBackground = true, Name = "MeetWise route build" };
+        lock (_gate) _pending = done;
+        worker.Start();
+        bool finished = done.Wait(BuildTimeout);
+
+        lock (_gate)
+        {
+            if (_disposed || gen != _generation) return; // a newer rebuild or Dispose took over
+            _pending = null;
+            if (finished && built is not null && error is null)
+            {
+                _route = built;
                 _attempt = 0;
                 if (reason != "starting") Restarts++;
                 SetStatus("running");
+                return;
             }
-            catch (Exception ex)
-            {
-                _attempt++;
-                var delay = _backoff(_attempt);
-                AppLog.Warn($"Route could not start ({reason}): {ex.Message}. Retrying in {delay.TotalSeconds:0.#} s.");
-                SetStatus($"waiting for the microphone (retry {_attempt})");
-                _retry = new Timer(_ => Rebuild("retry"), null, delay, Timeout.InfiniteTimeSpan);
-            }
+            _attempt++;
+            var delay = _backoff(_attempt);
+            var why = finished ? error?.Message ?? "no route" : $"Windows audio did not answer within {BuildTimeout.TotalSeconds:0} s";
+            AppLog.Warn($"Route could not start ({reason}): {why}. Retrying in {delay.TotalSeconds:0.#} s.");
+            SetStatus(finished ? $"waiting for the microphone (retry {_attempt})" : $"waiting for Windows audio (retry {_attempt})");
+            _retry = new Timer(_ => Rebuild("retry"), null, delay, Timeout.InfiniteTimeSpan);
         }
     }
+
+    private ManualResetEventSlim? _pending;
 
     private void OnFailed(string message)
     {

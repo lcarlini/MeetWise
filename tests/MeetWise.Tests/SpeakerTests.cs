@@ -74,36 +74,3 @@ public class SpeakerTests
         Assert.Null(reloaded.Identify(long1[half..]));
     }
 }
-
-public class SpeakerLabelingTests
-{
-    private static string Models => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MeetWise", "models", "speaker");
-
-    [Fact]
-    public void RelabelsOthers_ByDiarizedSpeaker_AndLeavesMeAlone()
-    {
-        var seg = Path.Combine(Models, "sherpa-onnx-pyannote-segmentation-3-0", "model.onnx");
-        var emb = Path.Combine(Models, "3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx");
-        var wav = Path.Combine(Models, "four-speakers.wav");
-        if (!File.Exists(seg) || !File.Exists(emb) || !File.Exists(wav)) return;
-
-        var audio = MeetWise.Audio.AudioFile.ReadMono16k(wav);
-        using var diarizer = new Diarizer(seg, emb);
-        var diar = diarizer.Diarize(audio);
-
-        var db = new MeetWise.Storage.MeetingDatabase(Path.Combine(Path.GetTempPath(), "mw-sl-" + Guid.NewGuid().ToString("N"), "t.db"));
-        var m = db.AddMeeting("Call", DateTime.UtcNow);
-        // One transcript segment per diarized turn, as the live ASR would have produced on the remote channel.
-        foreach (var d in diar) db.AddSegment(m, "Others", d.Start, d.End, "words");
-        db.AddSegment(m, "Me", 0, 3, "my own words");
-
-        int changed = MeetWise.Audio.SpeakerLabeling.Apply(db, m, audio, diarizer);
-        var labels = db.GetTranscript(m).Where(s => s.Speaker != "Me").Select(s => s.Speaker).Distinct().ToList();
-
-        Assert.Equal(diar.Count, changed);
-        Assert.InRange(labels.Count, 3, 5);
-        Assert.All(labels, l => Assert.StartsWith("Speaker ", l));
-        Assert.Contains(labels, l => l == "Speaker 1");
-        Assert.Equal("Me", db.GetTranscript(m).Single(s => s.Text == "my own words").Speaker);
-    }
-}

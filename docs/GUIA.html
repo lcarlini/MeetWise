@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeetWise: guia rápido</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#ffffff; --text:#1c2340; --muted:#5a6486; --accent:#3b5bdb; --warn:#b54708; --stroke:#dfe3f0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#14192b; --card:#1d2440; --text:#e7ebf7; --muted:#a6afcc; --accent:#8ea4ff; --warn:#f5b26b; --stroke:#2f3a60; }
+  }
+  :root[data-theme="dark"] { --bg:#14192b; --card:#1d2440; --text:#e7ebf7; --muted:#a6afcc; --accent:#8ea4ff; --warn:#f5b26b; --stroke:#2f3a60; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.55 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 28px; margin: 8px 0 4px; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  section { background: var(--card); border: 1px solid var(--stroke); border-radius: 12px; padding: 18px; margin: 0 0 14px; }
+  ol, ul { padding-left: 22px; margin: 6px 0; }
+  li { margin: 6px 0; }
+  .warn { color: var(--warn); }
+  kbd { background: var(--bg); border: 1px solid var(--stroke); border-radius: 4px; padding: 0 5px; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+  @media (max-width: 480px) { h1 { font-size: 24px; } th, td { font-size: 14px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>MeetWise: guia rápido</h1>
+  <p class="lead">Microfone limpo para Zoom, Teams, Meet e Discord. Tudo roda no seu PC.</p>
+
+  <section>
+    <h2>1. Criar o microfone (só uma vez)</h2>
+    <ol>
+      <li>Abra o MeetWise.</li>
+      <li>Clique em <b>Criar Microfone MeetWise</b>.</li>
+      <li>O Windows pede permissão de administrador. Aceite.</li>
+      <li>Se o microfone não aparecer logo, reinicie o PC.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>2. Ligar</h2>
+    <ol>
+      <li>Clique em <b>Ligar</b>. O cartão fica verde: <i>Ligado: Zoom e Teams ouvem sua voz limpa</i>.</li>
+      <li>O MeetWise lembra disso: o microfone continua ligado em segundo plano e inicia com o Windows.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>3. Escolher no Zoom, Teams ou Meet</h2>
+    <ol>
+      <li>Abra as configurações de áudio do app.</li>
+      <li>Em <b>Microfone</b>, escolha <b>MeetWise Microphone</b>.</li>
+      <li>No Zoom, deixe a supressão de ruído do próprio Zoom em <b>Baixa</b>: o MeetWise já removeu o ruído.</li>
+      <li>Alternativa: clique em <b>Tornar padrão do Windows</b>. Todos os apps passam a usar o microfone limpo.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>4. Testar antes da reunião</h2>
+    <ul>
+      <li><b>Testar como o Zoom me ouve</b>: grava 6 segundos do próprio MeetWise Microphone. Fale, e depois ouça <i>Ouvir original</i> e <i>Ouvir o que eles ouvem</i>.</li>
+      <li><b>Verificar conexão</b>: envia um tom de teste pelo microfone e confere se ele chega ao outro lado.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. Ajustar a limpeza</h2>
+    <table>
+      <tr><th>Opção</th><th>O que faz</th></tr>
+      <tr><td>Remover ruído de fundo</td><td>Latidos, teclado, ventilador, trânsito, TV. A <b>Intensidade</b> controla quanto é removido.</td></tr>
+      <tr><td>Remover eco</td><td>Tira a voz dos outros que volta pelos seus alto-falantes. Com fone de ouvido não é necessário.</td></tr>
+      <tr><td>Remover vozes de fundo</td><td>Mantém só a sua voz. Precisa de cerca de um minuto para aprender a sua voz (botão <i>Treinar minha voz</i>).</td></tr>
+      <tr><td>Volume automático</td><td>Mantém o volume estável, sem aumentar o ruído nas pausas.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. Quem limpa o microfone</h2>
+    <p><b>MeetWise</b> (padrão): o próprio MeetWise remove ruído e voz de fundo.</p>
+    <p><b>NVIDIA Broadcast</b>: o Broadcast remove o ruído e o eco da sala. Ligue <i>Noise Removal</i> e <i>Room Echo Removal</i> no app dele. O MeetWise usa o microfone do Broadcast e desliga a própria remoção de ruído. No Zoom/Teams, continue escolhendo <b>MeetWise Microphone</b>.</p>
+    <p>Se o Broadcast estiver fechado ou o microfone dele falhar, o MeetWise volta sozinho a limpar o microfone, para a chamada não ficar muda.</p>
+  </section>
+
+  <section>
+    <h2>7. Accent Assist (experimental)</h2>
+    <p class="warn">Desligado por padrão. Ainda altera a sua voz e algumas palavras curtas (por exemplo, "Testing" pode virar "Thirsty"). Não use em chamadas importantes.</p>
+    <p>Para ligar, marque <b>Accent Assist</b> e ajuste a intensidade. O atraso adicionado é de cerca de 0,3 s.</p>
+  </section>
+
+  <section>
+    <h2>Problemas comuns</h2>
+    <table>
+      <tr><th>Sintoma</th><th>O que fazer</th></tr>
+      <tr><td>O Zoom não ouve nada</td><td>Confirme que o microfone escolhido é <b>MeetWise Microphone</b> e que o cartão está verde. Clique em <b>Verificar conexão</b>.</td></tr>
+      <tr><td>Cartão mostra "precisa de reparo" ou "desativado no Windows"</td><td>Clique em <b>Reparar</b>. Se o som parar em seguida, reinicie o PC.</td></tr>
+      <tr><td>Chamada muda por um instante</td><td>Normal ao trocar de dispositivo: o MeetWise reconecta sozinho.</td></tr>
+      <tr><td>Quer parar tudo</td><td>Clique com o botão direito no ícone do MeetWise, perto do relógio, e escolha <b>Sair</b>. Fechar a janela não para o microfone.</td></tr>
+    </table>
+  </section>
+
+  <p class="lead">Documentação completa: <code>README.md</code>. Medições de qualidade: <code>docs/QUALITY-REPORT.md</code>.</p>
+</main>
+</body>
+</html>

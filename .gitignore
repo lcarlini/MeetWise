@@ -3,5 +3,7 @@ obj/
 .vs/
 *.user
 dist/
-models/
+/models/
 native/build/
+__pycache__/
+accent/venv/

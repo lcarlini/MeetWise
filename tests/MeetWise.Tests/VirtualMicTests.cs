@@ -33,7 +33,10 @@ public class VirtualMicTests
     public void ChoosePhysicalMic_NeverReturnsTheVirtualMic_EvenWhenItIsTheWindowsDefault()
     {
         // the user made MeetWise Microphone the Windows default: cleaning "the default" would record our own output
-        Assert.Equal("nv", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Usb, Broadcast }, "nv"));
+        // "default" prefers real hardware over another noise processor (NVIDIA Broadcast): chaining denoisers only adds delay, and its devices hung
+        Assert.Equal("usb", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Usb, Broadcast }, "nv"));
+        Assert.Equal("nv", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Broadcast }, null));  // used when it is the only one
+        Assert.Equal("nv", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Usb, Broadcast }, null, new HashSet<string> { "usb" })); // usb hung
         Assert.Equal("usb", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Usb, Broadcast }, null)); // falls back to the first real one
         Assert.Equal("usb", VirtualMic.ChoosePhysicalMic("default", "vb", new[] { Virtual, Usb }, "unplugged-device"));
         Assert.NotEqual("vb", VirtualMic.ChoosePhysicalMic("vb", "vb", new[] { Virtual, Usb }, null)); // even if asked for explicitly
@@ -155,6 +158,59 @@ public class VirtualMicTests
     }
 
     [Fact]
+    public async Task Repair_DoesNothing_WhenTheCableAlreadyWorks()
+    {
+        bool elevated = false;
+        var r = await VirtualMicInstaller.RepairAsync(endpointsVisible: () => true, runElevated: _ => { elevated = true; return Task.FromResult(0); });
+        Assert.Equal(InstallOutcome.AlreadyInstalled, r.Outcome);
+        Assert.False(elevated);
+    }
+
+    [Fact]
+    public async Task Repair_RunsTheElevatedRepairHelper_AndReportsSuccessWhenTheFeedReturns()
+    {
+        var calls = new List<string>();
+        int checks = 0;
+        var r = await VirtualMicInstaller.RepairAsync(ensurePack: () => Task.CompletedTask, endpointsVisible: () => ++checks > 3,
+            runElevated: arg => { calls.Add(arg); return Task.FromResult(VirtualMicInstaller.ExitOk); }, waitSeconds: 10);
+        Assert.Equal(new[] { VirtualMicInstaller.RepairArg }, calls);
+        Assert.Equal(InstallOutcome.Installed, r.Outcome);
+    }
+
+    [Fact]
+    public async Task Repair_ReportsCancelled_WhenTheUserDeclinesTheWindowsPrompt()
+    {
+        var r = await VirtualMicInstaller.RepairAsync(ensurePack: () => Task.CompletedTask, endpointsVisible: () => false, waitSeconds: 0,
+            runElevated: _ => throw new System.ComponentModel.Win32Exception(1223));
+        Assert.Equal(InstallOutcome.Cancelled, r.Outcome);
+    }
+
+    [Fact]
+    public async Task Repair_SaysRestart_WhenTheFeedNeverComesBack()
+    {
+        var r = await VirtualMicInstaller.RepairAsync(ensurePack: () => Task.CompletedTask, endpointsVisible: () => false, waitSeconds: 0,
+            runElevated: _ => Task.FromResult(VirtualMicInstaller.ExitNotVisible));
+        Assert.Equal(InstallOutcome.NeedsReboot, r.Outcome);
+    }
+
+    [Theory]
+    [InlineData(true, true, CableState.Ready)]
+    [InlineData(true, false, CableState.MicOnly)]
+    [InlineData(false, true, CableState.FeedOnly)]
+    [InlineData(false, false, CableState.Missing)]
+    public void StateOf_NamesWhichSidesExist(bool mic, bool feed, CableState expected) => Assert.Equal(expected, VirtualMic.StateOf(mic, feed));
+
+    [Theory]
+    [InlineData(CableState.MicOnly, true, false, "mtg.status.brokendefault")] // the reported bug: dead default microphone, apps hear silence
+    [InlineData(CableState.MicOnly, false, false, "mtg.status.broken")]
+    [InlineData(CableState.Missing, false, false, "mtg.status.notinstalled")]
+    [InlineData(CableState.Ready, true, false, "mtg.status.offdefault")]
+    [InlineData(CableState.Ready, false, false, "mtg.status.off")]
+    [InlineData(CableState.Ready, true, true, "mtg.status.on")]
+    public void StatusKey_WarnsWhenTheDefaultMicrophoneCannotCarryAVoice(CableState state, bool isDefault, bool running, string expected)
+        => Assert.Equal(expected, VirtualMic.StatusKey(state, isDefault, running));
+
+    [Fact]
     public async Task Pack_RealDownload_PassesHashCheck_AndContainsTheSetupProgram()
     {
         // downloads the official 1.3 MB pack from vb-audio.com, verifies the pinned SHA-256, unpacks it; installs nothing
@@ -183,7 +239,7 @@ public class VirtualMicTests
             reg.Enable(@"C:\Program Files\MeetWise\MeetWise.App.exe");
             Assert.True(reg.IsEnabled);
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run")!;
-            Assert.Equal("\"C:\\Program Files\\MeetWise\\MeetWise.App.exe\" --minimized", key.GetValue(name));
+            Assert.Equal("\"C:\\Program Files\\MeetWise\\MeetWise.App.exe\" --audio-host", key.GetValue(name));
             reg.Set(false, "ignored");
             Assert.False(reg.IsEnabled);
         }

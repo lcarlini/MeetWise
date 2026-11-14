@@ -1,26 +1,30 @@
 using System.IO;
+using System.Net.Http;
 using MeetWise.Audio;
 using MeetWise.Core;
 using MeetWise.Core.Hardware;
 using MeetWise.Core.Models;
-using MeetWise.Intelligence;
+using MeetWise.Core.Settings;
 using MeetWise.Speech;
-using System.Net.Http;
-using MeetWise.Storage;
 
 namespace MeetWise.App;
 
-/// <summary>Loads every native dependency and reports what works on this PC. Exit code 0 means all required parts loaded.</summary>
+/// <summary>
+/// Headless check of the clean microphone on this PC (<c>MeetWise.App.exe --selftest</c>): devices, the virtual cable, every noise model, the
+/// full chain's speed, and, when the background microphone is running, the end-to-end cable check (a test tone written into the MeetWise
+/// Mic Feed must come back out of the MeetWise Microphone). Exit code 0 means every required check passed. The report is also written to
+/// %LocalAppData%\MeetWise\selftest.txt.
+/// </summary>
 public static class SelfTest
 {
-    public static int Run(string? reportPath)
+    public static async Task<int> RunAsync()
     {
         var lines = new List<string>();
         int failures = 0;
 
-        void Check(string name, Func<string> body, bool required = true)
+        async Task Check(string name, Func<Task<string>> body, bool required = true)
         {
-            try { lines.Add($"PASS  {name}: {body()}"); }
+            try { lines.Add($"PASS  {name}: {await body()}"); }
             catch (Exception ex)
             {
                 lines.Add($"{(required ? "FAIL" : "WARN")}  {name}: {ex.GetType().Name}: {ex.Message}");
@@ -29,105 +33,83 @@ public static class SelfTest
         }
 
         lines.Add($"MeetWise self-test {DateTime.Now:yyyy-MM-dd HH:mm:ss} on {Environment.OSVersion}");
-        Check("Hardware", () =>
+        await Check("Hardware", () =>
         {
             var hw = HardwareDetector.Detect();
-            return $"tier {hw.Tier}, {hw.CpuThreads} threads, GPU {(hw.Gpus.Count > 0 ? hw.Gpus[0].Name + " " + hw.Gpus[0].VramMb + " MB" : "none")}, Whisper {ModelCatalog.WhisperFor(hw).Id}";
+            return Task.FromResult($"tier {hw.Tier}, {hw.CpuThreads} threads, GPU {(hw.Gpus.Count > 0 ? hw.Gpus[0].Name + " " + hw.Gpus[0].VramMb + " MB" : "none")}");
         });
-        Check("SQLite + full-text search", () =>
-        {
-            var db = new MeetingDatabase(Path.Combine(Path.GetTempPath(), "mw-selftest-" + Guid.NewGuid().ToString("N"), "t.db"));
-            var m = db.AddMeeting("selftest", DateTime.UtcNow);
-            db.AddSegment(m, "Me", 0, 1, "hello selftest");
-            return db.Search("selftest").Count == 1 ? "ok" : throw new InvalidOperationException("search returned nothing");
-        });
-        Check("Audio devices (WASAPI)", () =>
+        await Check("Audio devices (WASAPI)", () =>
         {
             var svc = new AudioDeviceService();
-            return $"{svc.GetMicrophones().Count - 1} microphone(s), {svc.GetRenderDevices().Count} output(s)";
+            return Task.FromResult($"{svc.GetMicrophones().Count - 1} physical microphone(s), {svc.GetRenderDevices().Count} output(s)");
         });
-        Check("Speech engine (sherpa-onnx)", () =>
+        await Check("Virtual cable", () =>
         {
-            using var mgr = new SherpaOnnx.SpeakerEmbeddingManager(192); // loads the native library without needing a model
-            return "native library loaded";
+            var state = VirtualMic.GetState();
+            var f = VirtualMic.Formats();
+            var disabled = VirtualMic.DisabledEndpoints();
+            var text = $"{state}; mic '{VirtualMic.FindMic()?.Name}', feed '{VirtualMic.FindFeed()?.Name}'"
+                + (f is { } x ? $"; feed {x.FeedRate} Hz/{x.FeedChannels} ch, mic {x.MicRate} Hz/{x.MicChannels} ch" : "")
+                + (disabled.Count > 0 ? $"; disabled: {string.Join(", ", disabled.Select(d => d.Name))}" : "");
+            return state == CableState.Ready ? Task.FromResult(text) : throw new InvalidOperationException(text);
         });
-        Check("Whisper runtime", () =>
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+        var manager = new ModelManager(http);
+        foreach (var (model, kind) in new[] { (ModelCatalog.DenoiseLight, EnhancerKind.Light), (ModelCatalog.DenoiseBalanced, EnhancerKind.FullBand), (ModelCatalog.DenoiseFullBand, EnhancerKind.FullBand) })
         {
-            var gpu = CudaRuntimePack.Activate();
-            var runtimes = Path.Combine(AppContext.BaseDirectory, "runtimes");
-            if (!Directory.Exists(runtimes) || Directory.GetFiles(runtimes, "whisper.dll", SearchOption.AllDirectories).Length == 0)
-                throw new FileNotFoundException("whisper.dll is missing from the build");
-            var model = Directory.Exists(Path.Combine(AppPaths.Models, "whisper")) ? Directory.GetFiles(Path.Combine(AppPaths.Models, "whisper"), "*.bin").FirstOrDefault() : null;
-            if (model is null) return $"runtime files present (GPU pack {(gpu ? "installed" : "not installed")}); load not tested because no model is downloaded yet";
-            using var factory = Whisper.net.WhisperFactory.FromPath(model);
-            return $"{Whisper.net.LibraryLoader.RuntimeOptions.LoadedLibrary} runtime loaded (GPU pack {(gpu ? "installed" : "not installed")})";
-        });
-        Check("llama.cpp runtime", () =>
-        {
-            LlamaBackend.Configure(CudaRuntimePack.Activate());
-            if (!LLama.Native.NativeLibraryConfig.All.DryRun(out var lib, out _) || lib is null)
-                throw new InvalidOperationException("no llama.cpp backend could be loaded");
-            return lib is { Metadata.UseCuda: true } ? "CUDA backend" : "CPU backend";
-        });
-        Check("Windows speech voices", () => $"{WindowsVoice.InstalledLanguages.Count} language(s): {string.Join(", ", WindowsVoice.InstalledLanguages.Take(8))}", required: false);
-        Check("FFmpeg", () => FFmpegPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first video recording)"), required: false);
-        Check("Monitors", () => string.Join("; ", new MonitorService().GetMonitors().Select(m => m.ToString())), required: false);
-        Check("yt-dlp (YouTube import)", () => YtDlpPack.Find() ?? throw new FileNotFoundException("not downloaded yet (fetched on first YouTube import)"), required: false);
-        Check("Echo canceller (synthetic echo)", () =>
-        {
-            // a made-up far end with a 90 ms delayed, reverberant copy in the microphone: no audio device is touched
-            const int rate = 16000;
-            var rng = new Random(7);
-            var far = new float[rate * 8];
-            float lp = 0;
-            for (int i = 0; i < far.Length; i++) { lp = 0.7f * lp + 0.3f * (float)(rng.NextDouble() * 2 - 1); far[i] = lp * (0.5f + 0.5f * (float)Math.Sin(2 * Math.PI * 3 * i / rate)); }
-            var path = new float[rate * 40 / 1000];
-            path[0] = 0.5f;
-            for (int k = 1; k < path.Length; k++) path[k] = (float)((rng.NextDouble() * 2 - 1) * 0.2 * Math.Exp(-k / (rate * 0.012)));
-            int delay = rate * 90 / 1000;
-            var echo = new float[far.Length];
-            for (int i = 0; i < echo.Length; i++)
+            await Check($"Noise model {model.Id}", async () =>
             {
-                float acc = 0;
-                for (int k = 0; k < path.Length && i - delay - k >= 0; k++) acc += path[k] * far[i - delay - k];
-                echo[i] = acc;
+                await manager.EnsureAsync(model);
+                var path = manager.PathFor(model);
+                int? lat = LatencyProbe.Measure(kind, path);
+                using var e = new SpeechEnhancer(kind, path);
+                return $"{e.OutputSampleRate} Hz, look-ahead {(lat is { } l ? (l * 1000.0 / e.OutputSampleRate).ToString("0.0") + " ms" : "unknown")}";
+            });
+        }
+
+        await Check("Full chain speed (Max + echo + auto gain, 10 s at 48 kHz in 10 ms blocks)", async () =>
+        {
+            var s = new AppSettings { NoiseCancellation = NoiseMode.Max, EchoCancellation = true, AutoGain = true };
+            var options = await MicService.OptionsForAsync(http, s, NoiseMode.Max, false, null);
+            using var engine = new EnhancementEngine(48000, options);
+            var voice = LatencyProbe.SyntheticVoice(48000, 10);
+            var far = new float[480];
+            var rng = new Random(1);
+            for (int i = 0; i + 480 <= voice.Length; i += 480)
+            {
+                for (int k = 0; k < 480; k++) far[k] = (float)(rng.NextDouble() - 0.5) * 0.1f;
+                engine.Process(voice[i..(i + 480)], far);
             }
-            var aec = new EchoCanceller(rate);
-            var o = new float[far.Length];
-            for (int i = 0; i + 160 <= far.Length; i += 160) aec.Process(echo.AsSpan(i, 160), far.AsSpan(i, 160)).CopyTo(o, i);
-            double before = 0, after = 0;
-            for (int i = rate * 5; i < far.Length; i++) { before += echo[i] * echo[i]; after += o[i] * o[i]; }
-            double erle = 10 * Math.Log10(before / Math.Max(after, 1e-12));
-            if (!aec.Stats.DelayLocked) throw new InvalidOperationException("the delay estimator did not lock on a clear echo");
-            return erle >= 10 ? $"{erle:0} dB of echo removed, delay found: {aec.Stats.DelayMs + 25:0} ms" : throw new InvalidOperationException($"only {erle:0.0} dB of echo removed");
-        }, required: false);
-        Check("MeetWise Microphone (virtual cable)", () =>
+            var rtf = engine.RealTimeFactor;
+            var text = $"real-time factor {rtf:0.000} ({rtf:P1} of one core), model look-ahead {engine.ModelLatencyMs:0.0} ms, errors {engine.Errors}";
+            return rtf < 0.5 ? text : throw new InvalidOperationException("too slow: " + text);
+        });
+
+        await Check("Background microphone (audio host)", async () =>
         {
-            var mic = VirtualMic.FindMic();
-            var feed = VirtualMic.FindFeed();
-            if (mic is null || feed is null) throw new InvalidOperationException("not installed: use \"Create MeetWise Microphone\" in the app");
-            var desc = EndpointProperties.ReadDescription(mic.Id);
-            var isDefault = DefaultMicrophone.Current().Communications == mic.Id;
-            return $"\"{mic.Name}\" (named {desc}) and \"{feed.Name}\"; Windows default: {(isDefault ? "yes" : "no")}";
-        }, required: false);
-        Check("Voice profile", () => VoiceProfile.IsTrained()
-            ? $"trained ({VoiceProfile.Load()?.Sentences} sentences)"
-            : throw new InvalidOperationException("not trained yet: use \"Train my voice\" in the app"), required: false);
-        Check("English coach models", () =>
-        {
-            var m = new ModelManager(new HttpClient());
-            return m.IsInstalled(ModelCatalog.PunctuationEnglish) && m.IsInstalled(ModelCatalog.SileroVad) ? "punctuation and voice-activity models present"
-                : throw new FileNotFoundException("downloaded on first use");
-        }, required: false);
-        Check("Virtual audio device", () =>
-        {
-            var v = new AudioDeviceService().GetRenderDevices().Where(d => AudioDeviceService.LooksVirtual(d.Name)).Select(d => d.Name).ToList();
-            return v.Count > 0 ? string.Join("; ", v) : throw new InvalidOperationException("none found: install VB-CABLE to let meeting apps hear the cleaned microphone");
+            var reply = await HostLink.SendAsync("status", TimeSpan.FromSeconds(2)) ?? throw new InvalidOperationException("not running");
+            var st = reply.Status!;
+            return $"{(st.Running ? "running" : "off")} ({st.State}), applied: {st.Applied}{(reply.Error is null ? "" : ", error: " + reply.Error)}";
         }, required: false);
 
-        lines.Add(failures == 0 ? "RESULT: all required components loaded" : $"RESULT: {failures} required component(s) failed");
-        var text = string.Join(Environment.NewLine, lines);
-        try { File.WriteAllText(reportPath ?? Path.Combine(AppPaths.Roaming, "logs", "selftest.txt"), text); } catch (Exception) { /* report is best effort */ }
+        await Check("End-to-end: test tone through the MeetWise Microphone", async () =>
+        {
+            var reply = await HostLink.SendAsync("check", TimeSpan.FromSeconds(10)) ?? throw new InvalidOperationException("background microphone not running");
+            var c = reply.Check!;
+            return c.Passed ? $"{c.Message} (delay {c.DelayMs:0} ms)" : throw new InvalidOperationException(c.Message);
+        }, required: false);
+
+        lines.Add(failures == 0 ? "RESULT: all required checks passed" : $"RESULT: {failures} required check(s) failed");
+        var report = string.Join(Environment.NewLine, lines);
+        Console.WriteLine(report);
+        try
+        {
+            var path = Path.Combine(AppPaths.Local, "selftest.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, report);
+        }
+        catch (Exception) { }
         return failures == 0 ? 0 : 1;
     }
 }

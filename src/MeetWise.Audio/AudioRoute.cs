@@ -22,6 +22,9 @@ public interface IAudioRoute : IDisposable
     long Overflows { get; }
 }
 
+/// <summary>Live numbers of a running route for the level meters and the status line.</summary>
+public sealed record RouteMeter(float InputPeak, float OutputPeak, double GainDb, double LatencyMs, long ModelErrors, double Load);
+
 public sealed class AudioRoute : IAudioRoute
 {
     public event Action<string>? Failed;
@@ -31,10 +34,25 @@ public sealed class AudioRoute : IAudioRoute
     private readonly WasapiCapture _capture;
     private readonly WasapiOut _out;
     private readonly BufferedWaveProvider _buffer;
+    private readonly StreamResampler? _toRender;
     private LoopbackReference? _reference;
     private float[] _far = Array.Empty<float>();
     private long _overflows;
     private int _overloadedBlocks;
+    private int _consecutiveErrors;
+    private float[]? _probe;
+    private int _probePos;
+    private readonly object _probeLock = new();
+
+    /// <summary>The output buffer is kept between these bounds: the capture and the cable run on different clocks, and without a bound the
+    /// difference piles up as delay (up to the whole buffer, half a second, after a long call).</summary>
+    private static readonly TimeSpan MaxQueued = TimeSpan.FromMilliseconds(120), TrimTo = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>How long the microphone may take to start before it is treated as hung.</summary>
+    public static TimeSpan MicStartTimeout { get; set; } = TimeSpan.FromSeconds(3);
+
+    /// <summary>Raised with the device id when the microphone does not start in time (the caller should pick another one).</summary>
+    public event Action<string>? DeviceHung;
 
     /// <summary>Raised (once) when processing cannot keep up with real time, so the caller can switch to a lighter mode.</summary>
     public event Action? Overloaded;
@@ -43,7 +61,10 @@ public sealed class AudioRoute : IAudioRoute
     public long Overflows => Interlocked.Read(ref _overflows);
     public double RealTimeFactor => _engine.RealTimeFactor;
 
-    public AudioRoute(MMDevice capture, MMDevice render, EnhancementOptions options, LoopbackReference? reference = null)
+    private readonly AccentStage? _accent;
+
+    /// <param name="accentFor">Optional: gives the Accent Assist stage for the chain's output rate (null = off).</param>
+    public AudioRoute(MMDevice capture, MMDevice render, EnhancementOptions options, LoopbackReference? reference = null, Func<int, AccentStage?>? accentFor = null)
     {
         _capDevice = capture;
         _renderDevice = render;
@@ -51,14 +72,16 @@ public sealed class AudioRoute : IAudioRoute
         _capture = new WasapiCapture(capture, true, 20);
         var cf = _capture.WaveFormat;
         _engine = new EnhancementEngine(cf.SampleRate, options);
-        _buffer = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(_engine.OutputSampleRate, 1))
+        _accent = accentFor?.Invoke(_engine.OutputSampleRate);
+        var rf = _renderDevice.AudioClient.MixFormat;
+        // resample here with the windowed-sinc converter (NAudio's WdlResamplingSampleProvider uses a linear + IIR mode that smears the phase)
+        if (rf.SampleRate != _engine.OutputSampleRate) _toRender = new StreamResampler(_engine.OutputSampleRate, rf.SampleRate);
+        _buffer = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(rf.SampleRate, 1))
         {
             BufferDuration = TimeSpan.FromMilliseconds(500),
             DiscardOnBufferOverflow = true
         };
         ISampleProvider chain = _buffer.ToSampleProvider();
-        var rf = _renderDevice.AudioClient.MixFormat;
-        if (rf.SampleRate != _engine.OutputSampleRate) chain = new WdlResamplingSampleProvider(chain, rf.SampleRate);
         if (rf.Channels == 2) chain = new MonoToStereoSampleProvider(chain);
         _out = new WasapiOut(render, AudioClientShareMode.Shared, true, 30);
         _out.Init(chain);
@@ -72,6 +95,7 @@ public sealed class AudioRoute : IAudioRoute
 
     public void Start()
     {
+        AppLog.Info($"Route starting: echo reference {(_reference is null ? "off" : "on")}, output {_renderDevice.FriendlyName}, input {_capDevice.FriendlyName}");
         try { _reference?.Start(_capture.WaveFormat.SampleRate); }
         catch (Exception ex)
         {
@@ -80,8 +104,23 @@ public sealed class AudioRoute : IAudioRoute
             _reference?.Dispose();
             _reference = null;
         }
+        AppLog.Info("Route: echo reference ready; starting playback into the feed");
         _out.Play();
-        _capture.StartRecording();
+        AppLog.Info("Route: playback started; starting the microphone");
+        // some virtual microphones never return from Start (measured: NVIDIA Broadcast on the user's PC); never hang the route on one
+        Exception? error = null;
+        var done = new ManualResetEventSlim();
+        var t = new Thread(() => { try { _capture.StartRecording(); } catch (Exception ex) { error = ex; } finally { done.Set(); } })
+            { IsBackground = true, Name = "MeetWise mic start" };
+        t.Start();
+        if (!done.Wait(MicStartTimeout))
+        {
+            AppLog.Warn($"The microphone '{_capDevice.FriendlyName}' did not start within {MicStartTimeout.TotalSeconds:0.#} s.");
+            _micHung = true;
+            DeviceHung?.Invoke(_capDevice.ID);
+            throw new TimeoutException($"The microphone '{_capDevice.FriendlyName}' does not respond.");
+        }
+        if (error is not null) throw error;
         AppLog.Info($"Route started: {_capDevice.FriendlyName} -> {_renderDevice.FriendlyName}");
     }
 
@@ -90,7 +129,7 @@ public sealed class AudioRoute : IAudioRoute
         try
         {
             var fmt = _capture.WaveFormat;
-            var samples = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
+            var samples = Pcm.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
             var mono = ToMono(samples, fmt.Channels);
             float[]? far = null;
             if (_reference is { } reference)
@@ -100,18 +139,77 @@ public sealed class AudioRoute : IAudioRoute
                 far = _far;
             }
             var cleaned = _engine.Process(mono, far);
+            if (_accent is not null && cleaned.Length > 0) cleaned = _accent.Process(cleaned);
+            MixProbe(cleaned);
             if (_engine.RecentLoad > 0.8) { if (++_overloadedBlocks == 150) Overloaded?.Invoke(); }
             else _overloadedBlocks = 0;
             if (cleaned.Length == 0) return;
+            if (_toRender is not null) cleaned = _toRender.Process(cleaned);
             var bytes = new byte[cleaned.Length * 4];
             Buffer.BlockCopy(cleaned, 0, bytes, 0, bytes.Length);
             if (_buffer.BufferedBytes + bytes.Length > _buffer.BufferLength) Interlocked.Increment(ref _overflows);
             _buffer.AddSamples(bytes, 0, bytes.Length);
+            TrimQueue();
+            _consecutiveErrors = 0;
         }
         catch (Exception ex)
         {
             AppLog.Error("Route processing failed", ex);
+            // a route that keeps failing sends silence while looking "on": after half a second of failures, rebuild it
+            if (++_consecutiveErrors == 25) Failed?.Invoke("processing kept failing: " + ex.Message);
         }
+    }
+
+    private void TrimQueue()
+    {
+        if (_buffer.BufferedDuration <= MaxQueued) return;
+        int excess = _buffer.BufferedBytes - (int)(_buffer.WaveFormat.AverageBytesPerSecond * TrimTo.TotalSeconds);
+        excess -= excess % _buffer.WaveFormat.BlockAlign;
+        if (excess <= 0) return;
+        var scratch = new byte[excess];
+        _buffer.Read(scratch, 0, excess);
+        Interlocked.Increment(ref _trims);
+    }
+
+    private long _trims;
+
+    /// <summary>Times queued audio was dropped to keep the delay low (clock drift between the microphone and the cable).</summary>
+    public long Trims => Interlocked.Read(ref _trims);
+
+    /// <summary>
+    /// Mixes a test signal into the cleaned output (after all processing), so a self-test can check that what MeetWise writes really arrives on
+    /// the "MeetWise Microphone" that Zoom/Teams record from.
+    /// </summary>
+    public void InjectProbe(float[] signalAtOutputRate)
+    {
+        lock (_probeLock) { _probe = signalAtOutputRate; _probePos = 0; }
+    }
+
+    private void MixProbe(float[] block)
+    {
+        if (_probe is null) return;
+        lock (_probeLock)
+        {
+            if (_probe is null) return;
+            int n = Math.Min(block.Length, _probe.Length - _probePos);
+            for (int i = 0; i < n; i++) block[i] = Math.Clamp(block[i] + _probe[_probePos + i], -1f, 1f);
+            _probePos += n;
+            if (_probePos >= _probe.Length) _probe = null;
+        }
+    }
+
+    public int OutputSampleRate => _engine.OutputSampleRate;
+
+    /// <summary>Why echo cancellation is not active right now (null when it is, or when it is switched off).</summary>
+    public string? EchoProblem => _reference?.Problem;
+
+    public RouteMeter TakeMeter()
+    {
+        var (i, o) = _engine.TakePeaks();
+        double queued = _buffer.BufferedDuration.TotalMilliseconds;
+        // what the caller hears late: capture buffer + model look-ahead + queue + playback buffer
+        double latency = 20 + _engine.ModelLatencyMs + (_accent?.DelayMs ?? 0) + queued + 30;
+        return new RouteMeter(i, o, _engine.GainDb, latency, _engine.Errors, _engine.RecentLoad);
     }
 
     public static float[] ToMono(float[] interleaved, int channels)
@@ -127,11 +225,14 @@ public sealed class AudioRoute : IAudioRoute
         return mono;
     }
 
+    private volatile bool _micHung;
+
     public void Dispose()
     {
-        try { _capture.StopRecording(); } catch { }
+        // a capture stuck inside Start would block Stop/Dispose as well: abandon it (its thread is a background thread)
+        if (!_micHung) try { _capture.StopRecording(); } catch { }
         try { _out.Stop(); } catch { }
-        _capture.Dispose();
+        if (!_micHung) _capture.Dispose();
         _out.Dispose();
         _reference?.Dispose();
         _engine.Dispose();
@@ -170,28 +271,70 @@ public sealed class LoopbackReference : IDisposable
         StartCapture();
     }
 
+    /// <summary>How long opening the loopback may take before the microphone goes on without it.</summary>
+    public static TimeSpan StartTimeout { get; set; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Opens and starts the loopback stream on its own thread. Some virtual speakers never return from Initialize/Start (measured: the NVIDIA
+    /// Broadcast speakers on the user's PC): that froze the whole microphone route, so Zoom/Teams heard silence. After
+    /// <see cref="StartTimeout"/> the microphone goes on without echo cancellation; if the stream starts later it is used from then on.
+    /// </summary>
     private void StartCapture()
     {
-        lock (_life)
+        lock (_life) { if (_disposed) return; }
+        var done = new ManualResetEventSlim();
+        Exception? error = null;
+        WasapiLoopbackCapture? started = null;
+        var t = new Thread(() =>
         {
-            if (_disposed) return;
-            var cap = new WasapiLoopbackCapture(_speakers);
-            _resampler = new ReferenceResampler(cap.WaveFormat.SampleRate, _targetRate);
-            cap.DataAvailable += (_, e) => OnData(cap, e);
-            cap.RecordingStopped += (_, e) => OnStopped(cap, e.Exception);
-            cap.StartRecording();
-            _cap = cap;
-            Healthy = true;
-            _attempt = 0;
+            WasapiLoopbackCapture? cap = null;
+            try
+            {
+                cap = new WasapiLoopbackCapture(_speakers);
+                var resampler = new ReferenceResampler(cap.WaveFormat.SampleRate, _targetRate);
+                var c = cap;
+                c.DataAvailable += (_, e) => OnData(c, e);
+                c.RecordingStopped += (_, e) => OnStopped(c, e.Exception);
+                _resampler = resampler;
+                cap.StartRecording();
+                bool keep;
+                lock (_life)
+                {
+                    keep = !_disposed;
+                    if (keep) { _cap = cap; Healthy = true; _attempt = 0; }
+                }
+                if (!keep) { try { cap.StopRecording(); cap.Dispose(); } catch (Exception) { } }
+                else started = cap;
+                if (done.IsSet) AppLog.Info("Echo reference started late; echo cancellation is active now.");
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+                try { cap?.Dispose(); } catch (Exception) { }
+            }
+            finally { done.Set(); }
+        }) { IsBackground = true, Name = "MeetWise loopback start" };
+        t.Start();
+        if (!done.Wait(StartTimeout))
+        {
+            Problem = "The speakers did not answer, so echo cancellation is off for now.";
+            AppLog.Warn($"Echo reference: the loopback of '{_speakers.FriendlyName}' did not start within {StartTimeout.TotalSeconds:0.#} s; the microphone continues without echo cancellation.");
+            done.Set(); // a late start logs that it became active
+            return;
         }
+        if (error is not null) throw error;
+        Problem = null;
     }
+
+    /// <summary>Why echo cancellation is not active (null when it is).</summary>
+    public string? Problem { get; private set; }
 
     private void OnData(WasapiLoopbackCapture cap, WaveInEventArgs e)
     {
         try
         {
             var fmt = cap.WaveFormat;
-            var floats = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
+            var floats = Pcm.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
             var mono = AudioRoute.ToMono(floats, fmt.Channels);
             var timeline = _timeline!;
             _resampler!.Process(mono, timeline.Write);

@@ -3,7 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\MeetWise.Core\MeetWise.Core.csproj" />
     <ProjectReference Include="..\MeetWise.Speech\MeetWise.Speech.csproj" />
-    <ProjectReference Include="..\MeetWise.Storage\MeetWise.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

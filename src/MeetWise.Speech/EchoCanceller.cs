@@ -9,7 +9,10 @@ namespace MeetWise.Speech;
 /// <param name="ResidualSuppression">Attenuate what the linear filter leaves behind while only the far end is talking.</param>
 /// <param name="BackgroundEstimation">Run the delay estimate on a pool thread (needed in the audio path; tests keep it inline for determinism).</param>
 /// <param name="GeigelMargin">How far above the learned echo peak (as a multiple) a microphone sample must be to count as the near-end talker.</param>
-public sealed record EchoOptions(int MaxDelayMs = 500, bool DelayEstimation = true, bool ResidualSuppression = true, bool BackgroundEstimation = false, float GeigelMargin = 2.5f);
+/// <param name="DelayWindowMs">How much audio each delay estimate looks at; <param name="DelayHopMs"/> how often one runs. Shorter = the echo is found sooner.</param>
+/// <param name="InitialMu">Step size until the filter has converged the first time (faster start), then the normal schedule.</param>
+public sealed record EchoOptions(int MaxDelayMs = 500, bool DelayEstimation = true, bool ResidualSuppression = true, bool BackgroundEstimation = false, float GeigelMargin = 2.5f,
+    int DelayWindowMs = 1500, int DelayHopMs = 250, float? InitialMu = null);
 
 /// <summary>A snapshot of what the canceller is doing, for the UI, logs and tests.</summary>
 /// <param name="DelayMs">Delay applied to the reference (the measured delay minus a quarter of the filter length).</param>
@@ -46,6 +49,8 @@ public sealed class EchoCanceller
 
     private readonly int _rate, _taps, _maxDelay, _frame;
     private readonly float _mu, _geigel, _margin;
+    private readonly float? _initialMu;
+    private bool _convergedOnce;
     private readonly float[] _w;
     private readonly float[] _hist;                 // far-end history, newest at _pos (double length for contiguous windows)
     private readonly int _histKeep;
@@ -104,7 +109,8 @@ public sealed class EchoCanceller
         _farDecay = (float)Math.Exp(-1.0 / (0.125 * sampleRate));
         _attack = (float)(1 - Math.Exp(-1.0 / (0.020 * sampleRate)));
         _release = (float)(1 - Math.Exp(-1.0 / (0.005 * sampleRate)));
-        if (options.DelayEstimation) _estimator = new DelayEstimator(sampleRate, options.MaxDelayMs, options.BackgroundEstimation);
+        if (options.DelayEstimation) _estimator = new DelayEstimator(sampleRate, options.MaxDelayMs, options.BackgroundEstimation, options.DelayWindowMs, options.DelayHopMs);
+        _initialMu = options.InitialMu;
     }
 
     /// <summary>Forget everything learned: filter, delay, history. Used when the acoustic path certainly changed.</summary>
@@ -181,7 +187,8 @@ public sealed class EchoCanceller
             {
                 // near-end talker clearly louder than the echo has been (calibrated during the first second of far-end speech)
                 if (_gainKnown && Math.Abs(m) > Math.Max(_geigel, _margin * _gainPeak) * _farTrack) _geigelHold = _rate * 150 / 1000;
-                float mu = _xiBase < 0.1 ? _mu * ConvergedMuFraction : _mu;
+                if (_xiBase < 0.1) _convergedOnce = true;
+                float mu = _xiBase < 0.1 ? _mu * ConvergedMuFraction : (!_convergedOnce && _initialMu is { } im ? im : _mu);
                 bool frozen = false;
                 if (_geigelHold > 0) { mu *= DoubleTalkMu; frozen = true; _geigelSamples++; }
                 else if (_xiHold > 0)

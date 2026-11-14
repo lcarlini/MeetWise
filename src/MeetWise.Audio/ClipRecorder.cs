@@ -26,7 +26,7 @@ public sealed class ClipRecorder : IDisposable
         _resampler = new Resampler(fmt.SampleRate, fmt.Channels);
         _capture.DataAvailable += (_, e) =>
         {
-            var f = LiveTranscriber.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
+            var f = Pcm.ToFloat(e.Buffer, e.BytesRecorded, fmt.Encoding == WaveFormatEncoding.IeeeFloat);
             float peak = 0;
             foreach (var v in f) peak = Math.Max(peak, Math.Abs(v));
             Level?.Invoke(peak);

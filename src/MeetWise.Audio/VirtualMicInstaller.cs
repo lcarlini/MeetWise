@@ -19,6 +19,7 @@ public static class VirtualMicInstaller
     public const string InstallArg = "--install-virtual-mic";
     public const string UninstallArg = "--uninstall-virtual-mic";
     public const string RenameArg = "--rename-virtual-mic";
+    public const string RepairArg = "--repair-virtual-mic";
 
     public const int ExitOk = 0, ExitSetupMissing = 2, ExitSetupFailed = 3, ExitNotVisible = 4, ExitRenameFailed = 5;
     private const int ErrorCancelled = 1223; // the user declined the Windows administrator prompt
@@ -58,6 +59,26 @@ public static class VirtualMicInstaller
         return Interpret(code, endpointsVisible());
     }
 
+    /// <summary>Fixes a cable that lost its playback (or recording) side: restarts the driver, and reinstalls it if that is not enough.</summary>
+    public static async Task<InstallResult> RepairAsync(HttpClient? http = null, Func<string, Task<int>>? runElevated = null, Func<bool>? endpointsVisible = null,
+        CancellationToken ct = default, Func<Task>? ensurePack = null, int waitSeconds = 20)
+    {
+        endpointsVisible ??= VirtualMic.IsInstalled;
+        runElevated ??= RunSelfElevatedAsync;
+        if (endpointsVisible()) return new(InstallOutcome.AlreadyInstalled, "The MeetWise Microphone is already working.");
+
+        // the reinstall fallback needs VB-Audio's setup program on disk; fetching it is harmless when the restart alone is enough
+        try { await (ensurePack?.Invoke() ?? (http is null ? Task.CompletedTask : VirtualCablePack.EnsureAsync(http, null, ct: ct))); }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException) { AppLog.Warn("Repair: could not fetch the VB-CABLE pack: " + ex.Message); }
+
+        int code;
+        try { code = await runElevated(RepairArg); }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled) { return new(InstallOutcome.Cancelled, "Repair cancelled: the Windows administrator prompt was declined."); }
+
+        for (int i = 0; i < waitSeconds && !endpointsVisible(); i++) await Task.Delay(1000, ct);
+        return Interpret(code, endpointsVisible());
+    }
+
     public static async Task<int> RunSelfElevatedAsync(string argument)
     {
         var psi = new ProcessStartInfo(Environment.ProcessPath!, argument) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
@@ -77,6 +98,47 @@ public static class VirtualMicInstaller
         for (int i = 0; i < 40 && !VirtualMic.IsInstalled(); i++) Thread.Sleep(1000);
         if (!VirtualMic.IsInstalled()) return ExitNotVisible;
         return RunRenameHelper();
+    }
+
+    public static int RunRepairHelper()
+    {
+        RestartCableDevice();
+        for (int i = 0; i < 20 && !VirtualMic.IsInstalled(); i++) Thread.Sleep(1000);
+        if (!VirtualMic.IsInstalled())
+        {
+            // restarting was not enough: run the VB-CABLE setup again, which recreates both endpoints
+            var setup = VirtualCablePack.SetupExe();
+            if (!File.Exists(setup)) return ExitSetupMissing;
+            if (RunSetup(setup, "-i -h") != 0) return ExitSetupFailed;
+            for (int i = 0; i < 40 && !VirtualMic.IsInstalled(); i++) Thread.Sleep(1000);
+            if (!VirtualMic.IsInstalled()) return ExitNotVisible;
+        }
+        return RunRenameHelper();
+    }
+
+    private static void RestartCableDevice()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("pnputil.exe", "/enum-devices /class MEDIA") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+            using var list = Process.Start(psi);
+            if (list is null) return;
+            var text = list.StandardOutput.ReadToEnd();
+            list.WaitForExit(30000);
+            string? id = null, current = null;
+            foreach (var raw in text.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.StartsWith("ROOT\\", StringComparison.OrdinalIgnoreCase) || line.Contains(": ROOT\\", StringComparison.OrdinalIgnoreCase))
+                    current = line[(line.IndexOf("ROOT\\", StringComparison.OrdinalIgnoreCase))..];
+                else if (current is not null && line.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase)) { id = current; break; }
+            }
+            if (id is null) { AppLog.Warn("Repair: the VB-Audio device was not found by pnputil."); return; }
+            var restart = Process.Start(new ProcessStartInfo("pnputil.exe", $"/restart-device \"{id}\"") { UseShellExecute = false, CreateNoWindow = true });
+            restart?.WaitForExit(30000);
+            restart?.Dispose();
+        }
+        catch (Exception ex) { AppLog.Warn("Repair: could not restart the cable driver: " + ex.Message); }
     }
 
     public static int RunRenameHelper()

@@ -3,9 +3,7 @@
     <Project Path="src/MeetWise.App/MeetWise.App.csproj" />
     <Project Path="src/MeetWise.Audio/MeetWise.Audio.csproj" />
     <Project Path="src/MeetWise.Core/MeetWise.Core.csproj" />
-    <Project Path="src/MeetWise.Intelligence/MeetWise.Intelligence.csproj" />
     <Project Path="src/MeetWise.Speech/MeetWise.Speech.csproj" />
-    <Project Path="src/MeetWise.Storage/MeetWise.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MeetWise.Tests/MeetWise.Tests.csproj" />
